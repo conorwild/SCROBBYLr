@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div class="notification is-danger">
+                {{ messages[0] }}
+            </div>
+        {% endif %}
+{% endwith %}
+<h1 class="title">
+  Welcome, {{ current_user.name }}!
+</h1>
+<div class="connections">
+  <div class="service">
+  <b>Last.fm</b><div class="status">Not connected</div>
+  <div class="connect"></div>
+
+</div>
+
+  <div class="service">
+  <b>Discogs</b>
+  <div class="connect">
+    {% if dc_connected %}
+    Logged in as {{ current_user.discogs_account }}  <a href="{{ url_for('discogs_bp.logout') }}">disconnect</a>
+    {% else %}
+    <a href="{{ url_for('discogs_bp.login') }}">Login to Discogs</a>
+    {% endif %}
+  </div>
+</div>
+</div>
+{% endblock %}
