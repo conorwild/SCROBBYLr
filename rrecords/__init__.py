@@ -1,11 +1,12 @@
 from flask import Flask, session
 from flask_sqlalchemy import SQLAlchemy
+from flask_marshmallow import Marshmallow
 from flask_login import LoginManager
-from flask_dance.consumer import OAuth1ConsumerBlueprint
 
 from multiprocessing.managers import BaseManager
 
 db = SQLAlchemy()
+ma = Marshmallow()
 
 def create_app():
     app = Flask(__name__, instance_relative_config=True)
@@ -13,9 +14,10 @@ def create_app():
     app.config.from_pyfile('config.py')
 
     db.init_app(app)
+    ma.init_app(app)
 
     login_manager = LoginManager()
-    login_manager.login_view = 'auth.login'
+    login_manager.login_view = 'auth_bp.login'
     login_manager.init_app(app)
 
     from . import models

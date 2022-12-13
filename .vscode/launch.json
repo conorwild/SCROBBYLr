@@ -11,6 +11,8 @@
             },
             "args": [
                 "run",
+                "--host=0.0.0.0",
+                "--port=4999",
                 "--no-debugger",
                 "--no-reload"
             ],
