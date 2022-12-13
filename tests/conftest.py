@@ -1,5 +1,5 @@
 import pytest
-from .. import create_app
+from rrecords import create_app
 
 @pytest.fixture()
 def app():
@@ -8,17 +8,12 @@ def app():
         "TESTING": True,
     })
 
-    # other setup can go here
-
-    yield app
-
-    # clean up / reset resources here
+    return app
 
 
 @pytest.fixture()
 def client(app):
     return app.test_client()
-
 
 @pytest.fixture()
 def runner(app):
