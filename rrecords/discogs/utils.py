@@ -1,4 +1,5 @@
 from discogs_client.exceptions import HTTPError
+import discogs_client
 
 def get_discogs(self, user):
     return self.connection_manager.get_discogs_client(user.to_dict())
@@ -23,3 +24,5 @@ def register_discogs_functions(app):
     app.get_discogs = get_discogs.__get__(app)
     app.close_discogs = close_discogs.__get__(app)
     app.discogs_logged_in = discogs_logged_in.__get__(app)
+
+# def remote_release_data(discogs_release):

@@ -8,7 +8,7 @@ def app():
         "TESTING": True,
     })
 
-    return app
+    yield app
 
 
 @pytest.fixture()

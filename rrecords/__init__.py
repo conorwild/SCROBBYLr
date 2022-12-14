@@ -2,11 +2,14 @@ from flask import Flask, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_login import LoginManager
-
+from sqlalchemy import event
 from multiprocessing.managers import BaseManager
 
 db = SQLAlchemy()
 ma = Marshmallow()
+
+def _fk_pragma_on_connect(dbapi_con, con_record):
+    dbapi_con.execute('pragma foreign_keys=ON')
 
 def create_app():
     app = Flask(__name__, instance_relative_config=True)
@@ -40,6 +43,7 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        event.listen(db.engine, 'connect', _fk_pragma_on_connect)
 
         from .auth.routes import auth_bp as auth_blueprint
         app.register_blueprint(auth_blueprint)

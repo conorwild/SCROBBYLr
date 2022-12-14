@@ -6,7 +6,7 @@ from flask import (
 from marshmallow.exceptions import ValidationError
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, login_required, logout_user
-from ..models import User, user_schema
+from ..models import User, user_schema, Collection
 from .. import db
 
 auth_bp = Blueprint(
@@ -45,6 +45,8 @@ def signup():
             new_user.password = generate_password_hash(
                 new_user.password, method='sha256'
             )
+            new_user.collections.append(Collection())
+
             db.session.add(new_user)
             db.session.commit()
             return redirect(url_for('auth_bp.login', email=new_user.email))
@@ -53,7 +55,7 @@ def signup():
             field = list(errs.messages.keys())[0]
             flash(f"{field.title()}: {errs.messages[field][0]}")
 
-    return render_template('signup.html')
+    return render_template('signup.html', code=422)
 
 @auth_bp.route('/logout')
 @login_required
