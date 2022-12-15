@@ -1,5 +1,5 @@
 from flask import (
-    Blueprint, render_template, redirect, url_for, request, flash,
+    render_template, redirect, url_for, request, flash,
     session, current_app as app, json, flash
 )
 
@@ -7,14 +7,9 @@ from flask_login import login_required, current_user
 
 from discogs_client.exceptions import HTTPError
 
+from . import discogs_bp
 from ..models import User
 from .. import db
-
-discogs_bp = Blueprint(
-    'discogs_bp', __name__, url_prefix='/discogs',
-    template_folder='templates',
-    static_folder='static'
-)
 
 @app.errorhandler(HTTPError)
 def handle_bad_request(e):

@@ -1,19 +1,14 @@
+from . import auth_bp
 from flask import (
     Blueprint, render_template, redirect, url_for, request, flash,
     session, current_app as app, jsonify
 )
-
 from marshmallow.exceptions import ValidationError
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, login_required, logout_user
 from ..models import User, user_schema, Collection
 from .. import db
 
-auth_bp = Blueprint(
-    'auth_bp', __name__,
-    template_folder='templates',
-    static_folder='static'
-)
 
 @auth_bp.route('/login')
 def login():

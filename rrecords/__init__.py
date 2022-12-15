@@ -1,20 +1,23 @@
-from flask import Flask, session
+from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_login import LoginManager
 from sqlalchemy import event
 from multiprocessing.managers import BaseManager
+import os
 
 db = SQLAlchemy()
 ma = Marshmallow()
+
 
 def _fk_pragma_on_connect(dbapi_con, con_record):
     dbapi_con.execute('pragma foreign_keys=ON')
 
 def create_app():
-    app = Flask(__name__, instance_relative_config=True)
-    app.config.from_object('config')
-    app.config.from_pyfile('config.py')
+    app = Flask(__name__)
+
+    CONFIG_TYPE = os.getenv('CONFIG_TYPE', default='config.DevelopmentConfig')
+    app.config.from_object(CONFIG_TYPE)
 
     db.init_app(app)
     ma.init_app(app)
@@ -37,7 +40,7 @@ def create_app():
     connection_manager.connect()
     app.connection_manager = connection_manager
 
-    from .discogs.utils import register_discogs_functions
+    from .utils.discogs import register_discogs_functions
     register_discogs_functions(app)
 
 
@@ -45,10 +48,10 @@ def create_app():
         db.create_all()
         event.listen(db.engine, 'connect', _fk_pragma_on_connect)
 
-        from .auth.routes import auth_bp as auth_blueprint
+        from .auth import auth_bp as auth_blueprint
         app.register_blueprint(auth_blueprint)
 
-        from .home.routes import main_bp as main_blueprint
+        from .main import main_bp as main_blueprint
         app.register_blueprint(main_blueprint)
 
         from .discogs.routes import discogs_bp as discogs_blueprint

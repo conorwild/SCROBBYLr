@@ -3,3 +3,6 @@ __pycache__/
 config.py
 db.sqlite
 obsolete/
+.pytest_cache/
+*.db
+.env

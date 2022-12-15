@@ -15,7 +15,6 @@ def discogs_logged_in(self, user):
         return False
     return True
 
-
 def register_discogs_functions(app):
 
     app.connection_manager.register('get_discogs_client')
@@ -24,5 +23,5 @@ def register_discogs_functions(app):
     app.get_discogs = get_discogs.__get__(app)
     app.close_discogs = close_discogs.__get__(app)
     app.discogs_logged_in = discogs_logged_in.__get__(app)
+    # app.remote_collection = releases_in_remote_collection.__get__(app)
 
-# def remote_release_data(discogs_release):

@@ -2,12 +2,12 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Docker: Python - Flask",
+            "name": "Python: RRECORDS Flask",
             "type": "python",
             "request": "launch",
             "module": "flask",
             "env": {
-                "FLASK_APP": "rrecords",
+                "FLASK_APP": "rrecords.py",
                 "FLASK_DEBUG": "1"
             },
             "args": [
@@ -19,6 +19,14 @@
             ],
             "jinja": true,
             "justMyCode": true
-        }
+        },
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+
     ],
 }
