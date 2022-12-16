@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="section">
+    <div class="container">
+        {% for row in items|batch(5) %}
+        <div class="columns">
+            {% for item in row %}
+            <div class="column">
+                <a href="{{ url_for('main_bp.release', id=item['id']) }}"><img src="{{ item['cover'] }}" /></a>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+{% endblock %}
+    

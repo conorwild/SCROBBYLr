@@ -23,5 +23,5 @@ def register_discogs_functions(app):
     app.get_discogs = get_discogs.__get__(app)
     app.close_discogs = close_discogs.__get__(app)
     app.discogs_logged_in = discogs_logged_in.__get__(app)
-    # app.remote_collection = releases_in_remote_collection.__get__(app)
+
 

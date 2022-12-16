@@ -1,8 +1,13 @@
 from flask_login import UserMixin
 from flask import current_app as app
 from sqlalchemy import Table, Column, ForeignKey, Integer, String, DateTime
+from sqlalchemy import asc, desc
 from sqlalchemy.orm import relationship, declarative_base
-from marshmallow import fields, pre_dump, pre_load, validates, ValidationError
+from marshmallow import (
+    EXCLUDE, fields, pre_dump, pre_load, post_load, validates, ValidationError
+)
+from discogs_client.models import PrimaryAPIObject
+from sqlalchemy_get_or_create import get_or_create
 from marshmallow.validate import Length, Range
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 from datetime import datetime
@@ -25,6 +30,13 @@ artist_to_release = Table(
     db.metadata,
     Column("artist_id", ForeignKey("artists.id"), primary_key=True),
     Column("release_id", ForeignKey("releases.id"), primary_key=True),
+)
+
+format_to_description = Table(
+    "format_to_description_associations",
+    db.metadata,
+    Column("format_id", ForeignKey("formats.id"), primary_key=True),
+    Column("format_description_id", ForeignKey("format_descriptions.id"), primary_key=True),
 )
 
 class Release(db.Model):
@@ -53,41 +65,108 @@ class Release(db.Model):
         "Track", back_populates="release", cascade='all, delete-orphan'
     )
 
+    formats = relationship(
+        "Format", back_populates="release"
+    )
+
     def __repr__(self):
         return f"<Release(id={self.id}, title='{self.title}, discogs_id={self.discogs_id}'>"
 
     @classmethod
-    def add_from_discogs(cls, discogs_release, commit=False):
-        if 'master_id' not in discogs_release.data:
-            discogs_release.refresh()
+    def query_user_folder(cls, user, folder, **order_kws):
+        _valid_fields = ['title', 'id', 'artists_sort', 'year', 'created_at']
+        _valid_directions = ['asc', 'desc']
+        ordering = []
+        for field, dir in order_kws.items():
+            if (field not in _valid_fields) | (dir not in _valid_directions):
+                raise ValueError
+            ordering.append(eval(dir)(field))
 
-        data = ReleaseSchema().dump(discogs_release.data)
+        return (
+            cls.query.join(Collection.releases)
+            .filter(Collection.folder==folder)
+            .join(Collection.user)
+            .filter(User.id==user.id)
+            .order_by(*ordering)
+            .all()
+        )
+
+    @classmethod
+    def add_from_discogs(cls, discogs_release, commit=False):
+
+        data = release_schema.load(discogs_release)
+        
         if not unique_field_value(cls, 'discogs_id', data['discogs_id']):
             print(f"Already found {data['title']}")
             return
 
-        artists_data = data.pop('artists')
+        artists_data = data.pop('artists', None)
+        formats_data = data.pop('formats', None)
         release = cls(**data)
-        for artist_data in artists_data:
-            artist = Artist.query.filter(Artist.discogs_id==artist_data['discogs_id']).first()
-            if artist is None:
-                artist = Artist(**artist_data)
-            release.artists.append(artist)
 
+        # Create / Find artists, append to .artists list on this release
+        if artists_data:
+            for artist_data in artists_data:
+                artist, got_it = get_or_create(db.session, Artist, **artist_data)
+                if got_it:
+                    release.artists.append(artist)
+
+        # Create each format entry for this release, and append to list
+        # Search for existing matching descriptions, if doesn't exist then
+        # create it, and attach to the format entry.
+        if formats_data:
+            for format_data in formats_data:
+                descriptions = format_data.pop('descriptions', None)
+                format = Format(**format_data)
+                if descriptions:
+                    for description in descriptions:
+                        desc, got_it = get_or_create(db.session, FormatDescription, **description)
+                        if got_it:
+                            format.descriptions.append(desc)
+
+                release.formats.append(format)
+
+        # Creat the tracks on this release
         for track in discogs_release.tracklist:
-            track_data = TrackSchema().dump(track.data)
+            track_data = track_schema.load(track.data)
             if track_data['type'] == 'track':
                 new_track = Track(**track_data)
                 release.tracks.append(new_track)
 
+        # Add release (and related children) to session, then commit?
         db.session.add(release)
         if commit:
             db.session.commit()
 
         return release
 
-# c
-# r = dc.release(16038490)
+class Format(db.Model):
+    __tablename__ = 'formats'
+    id = Column(Integer, primary_key=True)
+    name = Column(String(32))
+    qty = Column(Integer, nullable=False)
+    text = Column(String(255))
+    release_id = Column(Integer, ForeignKey('releases.id', onupdate="CASCADE", ondelete="CASCADE"))
+    release = relationship("Release", back_populates="formats")
+    descriptions = relationship(
+        "FormatDescription", secondary=format_to_description,
+        back_populates="formats"
+    )
+
+    def __repr__(self):
+        return f"<Format id={self.id}, qty={self.qty}, name={self.name}>"
+
+class FormatDescription(db.Model):
+    __tablename__ = 'format_descriptions'
+    id = Column(Integer, primary_key=True)
+    text = Column(String(255))
+    formats = relationship(
+        "Format", secondary=format_to_description,
+        back_populates="descriptions"
+    )
+
+    def __repr__(self):
+        return f"<Desc id={self.id}, text={self.text}>"
 
 class Track(db.Model):
     __tablename__ = 'tracks'
@@ -124,7 +203,7 @@ class Collection(db.Model):
     __tablename__ = 'collections'
     id = Column(Integer, primary_key=True)
     note = Column(String(length=255), nullable=True)
-
+    folder = Column(Integer, nullable=False)
     user_id = Column(Integer, ForeignKey('users.id', onupdate="CASCADE", ondelete="CASCADE"))
     user = relationship("User", back_populates="collections")
 
@@ -172,7 +251,7 @@ class User(UserMixin, db.Model):
             if release not in self.collections[folder].releases:
                 self.collections[folder].releases.append(release)
 
-        db.session.commit()
+            db.session.commit()
 
 def unique_field_value(model, field, value):
     return model.query.filter(getattr(model, field)==value).first() is None
@@ -213,15 +292,32 @@ class CollectionSchema(ma.SQLAlchemySchema):
     class Meta:
         model = Collection
     note = auto_field()
+    folder = auto_field()
     user = fields.Nested(lambda: UserSchema())
 
-class ArtistSchema(ma.SQLAlchemySchema):
+class DiscogsSchema(ma.SQLAlchemySchema):
+    
+    @pre_load
+    def convert_discogs(self, discogs_record, **kwargs):
+        if issubclass(discogs_record.__class__, PrimaryAPIObject):
+            if discogs_record.previous_request is None:
+                discogs_record.refresh()
+            discogs_record = discogs_record.data.copy()
+        if 'id' in discogs_record:
+            discogs_record['discogs_id'] = discogs_record.pop('id')
+        return discogs_record
+
+def _strip_name(string):
+    return re.sub(' \(\d+\)$', '', string)
+
+class ArtistSchema(DiscogsSchema):
     class Meta:
         model = Artist
+        unknown = EXCLUDE
 
-    @pre_dump
-    def remap_id(self, data, **kwargs):
-        data['discogs_id'] = data.pop('id')
+    @post_load
+    def clean_artist_name(self, data, **kwargs):
+        data['name'] = _strip_name(data['name'])
         return data
 
     id = auto_field()
@@ -230,13 +326,16 @@ class ArtistSchema(ma.SQLAlchemySchema):
     resource_url = auto_field()
     thumbnail_url = auto_field()
 
-class ReleaseSchema(ma.SQLAlchemySchema):
+artist_schema = ArtistSchema()
+
+class ReleaseSchema(DiscogsSchema):
     class Meta:
         model = Release
+        unknown = EXCLUDE
 
-    @pre_dump
-    def remap_id(self, data, **kwargs):
-        data['discogs_id'] = data.pop('id')
+    @post_load
+    def clean_artists_names(self, data, **kwargs):
+        data['artists_sort'] = _strip_name(data['artists_sort'])
         return data
 
     id = auto_field()
@@ -244,27 +343,31 @@ class ReleaseSchema(ma.SQLAlchemySchema):
     artists_sort = auto_field()
     artists = fields.List(fields.Nested(lambda: ArtistSchema))
     tracks = fields.List(fields.Nested(lambda: TrackSchema))
+    formats = fields.List(fields.Nested(lambda: FormatSchema))
     thumb = auto_field()
     cover_image = auto_field()
     year = auto_field()
     discogs_id = auto_field()
     master_id = auto_field()
     created_at = auto_field()
-    
-class TrackSchema(ma.SQLAlchemySchema):
+
+release_schema = ReleaseSchema()
+
+class TrackSchema(DiscogsSchema):
     class Meta:
         model = Track
+        unknown = EXCLUDE
 
-    @pre_dump
+    @pre_load
+    def rename_type_field(self, data, **kwargs):
+        data['type'] = data.pop('type_')
+        return data
+
+    @post_load
     def duration_in_seconds(self, data, **kwargs):
         if re.match('\d+:\d+', data['duration']):
             m, s = data['duration'].split(':')
             data['duration_s'] = int(m)*60 + int(s)
-        return data
-
-    @pre_dump
-    def remap_type(self, data, **kwargs):
-        data['type'] = data.pop('type_')
         return data
 
     id = auto_field()
@@ -274,7 +377,30 @@ class TrackSchema(ma.SQLAlchemySchema):
     duration = auto_field()
     duration_s = auto_field()
 
+track_schema = TrackSchema()
 
+class FormatDescriptionSchema(ma.SQLAlchemySchema):
+    class Meta:
+        model = FormatDescription
+
+    @pre_load
+    def rename_type_field(self, data, **kwargs):
+        return {'text': data}
+
+    id = auto_field()
+    text = auto_field()
+
+class FormatSchema(ma.SQLAlchemySchema):
+    class Meta:
+        model = Format
+
+    id = auto_field()
+    name = auto_field()
+    text = auto_field()
+    qty = auto_field()
+    descriptions = fields.List(fields.Nested(FormatDescriptionSchema))
+
+format_schema = FormatSchema()
 
 
 

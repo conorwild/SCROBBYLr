@@ -7,10 +7,8 @@ from flask.config import Config
 from discogs_client import Client as DClient
 import os
 
-config = Config(os.getcwd())
-config.from_object(
-    os.getenv('CONFIG_TYPE', default='config.DevelopmentConfig')
-)
+from config import Config
+
 
 discog_connections = {}
 lock = Lock()
@@ -24,8 +22,8 @@ def get_discogs_client(user):
             print(f"Creating new DClient for {user['name']}")
             discog_connections[user['id']] = DClient(
                 'my_user_agent/1.0',
-                consumer_key=config['DISCOGS_KEY'],
-                consumer_secret=config['DISCOGS_SECRET'],
+                consumer_key=Config.DISCOGS_KEY,
+                consumer_secret=Config.DISCOGS_SECRET,
                 token=user['discogs_token'],
                 secret=user['discogs_secret']
             )
@@ -39,7 +37,7 @@ def close_discogs_client(user):
             del discog_connections[user['id']]
 
 manager = BaseManager(
-    ('', config['CONNECTION_MGR_PORT']), config['CONNECTION_MGR_SECRET']
+    ('', Config.CONNECTION_MGR_PORT), Config.CONNECTION_MGR_SECRET
 )
 
 manager.register('has_discogs_client', has_discogs_client)

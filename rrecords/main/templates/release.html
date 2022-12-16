@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+
+
+<div class="columns is-centered">
+    <div class="column is-two-thirds ">
+        <section class="section">
+            <h1 class="title has-text-left" >{{ item['title'] }}</h1>
+            <h2 class="subtitle has-text-left">{{ item['artists_sort'] }}</h2>
+        </section>
+        <div class="tile is-ancestor">
+            <div class="tile is-4 is-vertical is-parent">
+                <div class="tile is-child box">
+                    <img src="{{ item['cover_image'] }}" />
+                </div>
+                <div class="tile is-child box">
+                    <figure class="image is-3by1">
+                        <a href="https://www.discogs.com/release/{{ item['discogs_id']}}"><img src="{{ url_for('main_bp.static', filename='images/discogs_logo.svg') }}" alt="discogs"/></a>
+                    </figure>
+                </div>
+            </div>
+            <div class="tile is-parent">
+                <div class="tile is-child box">
+                    <div class="content has-text-left">
+                    {% for track in item['tracks'] %}
+                    <p>{{track['position']}} - {{track['title']}} - {{track['duration']}}</p>
+                    {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

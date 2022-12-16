@@ -6,3 +6,4 @@ obsolete/
 .pytest_cache/
 *.db
 .env
+*.db-journal
