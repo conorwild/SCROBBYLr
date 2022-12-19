@@ -1,27 +1,18 @@
-from discogs_client.exceptions import HTTPError
-import discogs_client
+import re
+track_re = re.compile('(?P<t>\d+)$')
+media_re = re.compile('^(?P<m>[a-zA-Z0-9]+)(?=-?\d+$)')
+def split_position(position):
 
-def get_discogs(self, user):
-    return self.connection_manager.get_discogs_client(user.to_dict())
+    track_m = re.search(track_re, position)    
+    if not track_m:
+        raise ValueError(f"Invalid track position {position}??")
+    else: 
+        track = int(track_m.groups('t')[0])
 
-def close_discogs(self, user):
-    self.connection_manager.close_discogs_client(user.to_dict())
+    media_m = re.search(media_re, position)
+    if not media_m:
+        media = None
+    else:
+        media = media_m.groups('m')[0]
 
-def discogs_logged_in(self, user):
-    client = self.get_discogs(user)
-    try:
-        client.identity()
-    except HTTPError:
-        return False
-    return True
-
-def register_discogs_functions(app):
-
-    app.connection_manager.register('get_discogs_client')
-    app.connection_manager.register('close_discogs_client')
-
-    app.get_discogs = get_discogs.__get__(app)
-    app.close_discogs = close_discogs.__get__(app)
-    app.discogs_logged_in = discogs_logged_in.__get__(app)
-
-
+    return (media, track)

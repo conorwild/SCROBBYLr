@@ -1,7 +1,10 @@
 # %%
+from discogs_client import Client as DC
+import jsonpickle
 
+dc = DC('my_user_agent/1.0')
 
-#
+# %%
 import musicbrainzngs as mb
 mb.set_useragent("Example music app", "0.1", "http://example.com/music")
 # %%

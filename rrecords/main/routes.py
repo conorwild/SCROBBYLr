@@ -18,7 +18,7 @@ def profile():
 
     return render_template(
         'profile.html', 
-        dc_connected=app.discogs_logged_in(current_user),
+        dc_connected=current_user.logged_into_discogs(),
     )
 
 def _validate_folder(folder):

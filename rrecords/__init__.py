@@ -6,8 +6,9 @@ from sqlalchemy import event
 from celery import Celery
 from config import Config
 
-from multiprocessing.managers import BaseManager
+from .classes import CustomJSONDecoder, CustomJSONEncoder
 import os
+
 
 db = SQLAlchemy()
 ma = Marshmallow()
@@ -25,6 +26,9 @@ def create_app():
     CONFIG_TYPE = os.getenv('CONFIG_TYPE', default='config.DevelopmentConfig')
     app.config.from_object(CONFIG_TYPE)
 
+    app.json_encoder = CustomJSONEncoder
+    app.json_decoder = CustomJSONDecoder
+
     db.init_app(app)
     ma.init_app(app)
     
@@ -39,18 +43,6 @@ def create_app():
     @login_manager.user_loader
     def load_user(user_id):
         return models.User.query.get(int(user_id))
-
-    connection_manager = BaseManager(
-        ('', app.config["CONNECTION_MGR_PORT"]),
-        app.config["CONNECTION_MGR_SECRET"]
-    )
-
-    connection_manager.connect()
-    app.connection_manager = connection_manager
-
-    from .utils.discogs import register_discogs_functions
-    register_discogs_functions(app)
-
 
     with app.app_context():
         db.create_all()

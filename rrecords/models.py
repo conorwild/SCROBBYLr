@@ -12,6 +12,7 @@ from marshmallow.validate import Length, Range
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 from datetime import datetime
 import re
+from .classes import DiscogsClient
 
 from . import db
 from . import ma
@@ -171,7 +172,7 @@ class FormatDescription(db.Model):
 class Track(db.Model):
     __tablename__ = 'tracks'
     id = Column(Integer, primary_key=True)
-    position = Column(String(8))
+    position = Column(String(16))
     type = Column(String(32))
     title = Column(String(128))
     duration = Column(String(16))
@@ -239,8 +240,20 @@ class User(UserMixin, db.Model):
             c.name: getattr(self, c.name) for c in self.__table__.columns
         }
 
+    def open_discogs(self):
+        return DiscogsClient(
+            'my_user_agent/1.0',
+            consumer_key=app.config['DISCOGS_KEY'],
+            consumer_secret=app.config['DISCOGS_SECRET'],
+            token=self.discogs_token,
+            secret=self.discogs_secret
+        )
+
+    def logged_into_discogs(self):
+        return self.open_discogs().is_logged_in()
+
     def sync_with_discogs(self, folder=0):
-        client = app.get_discogs(self)
+        client = self.open_discogs()
         discogs_collection = client.identity().collection_folders[folder]
         for instance in discogs_collection.releases:
             discogs_release = instance.release
@@ -299,12 +312,21 @@ class DiscogsSchema(ma.SQLAlchemySchema):
     
     @pre_load
     def convert_discogs(self, discogs_record, **kwargs):
+        # Sometimes needs to be refreshed to make sure data is fetched.
         if issubclass(discogs_record.__class__, PrimaryAPIObject):
             if discogs_record.previous_request is None:
                 discogs_record.refresh()
             discogs_record = discogs_record.data.copy()
+
+        # Rename any discog IDs to 'discogs_id' so we can always go backwards.
         if 'id' in discogs_record:
             discogs_record['discogs_id'] = discogs_record.pop('id')
+
+        # Make sure that any string data are stripped of leading/trailing WS.
+        for f, d in discogs_record.items():
+            if isinstance(d, str):
+                discogs_record[f] = d.strip()
+
         return discogs_record
 
 def _strip_name(string):
