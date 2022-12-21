@@ -1,18 +1,24 @@
 from flask_login import UserMixin
 from flask import current_app as app
+
 from sqlalchemy import Table, Column, ForeignKey, Integer, String, DateTime
 from sqlalchemy import asc, desc
 from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy.ext.hybrid import hybrid_property, hybrid_method
+
+from marshmallow.validate import Length, Range
+from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 from marshmallow import (
     EXCLUDE, fields, pre_dump, pre_load, post_load, validates, ValidationError
 )
+
+from .classes import DiscogsClient
 from discogs_client.models import PrimaryAPIObject
+from itertools import accumulate
 from sqlalchemy_get_or_create import get_or_create
-from marshmallow.validate import Length, Range
-from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
+
 from datetime import datetime
 import re
-from .classes import DiscogsClient
 
 from . import db
 from . import ma
@@ -72,6 +78,10 @@ class Release(db.Model):
 
     def __repr__(self):
         return f"<Release(id={self.id}, title='{self.title}, discogs_id={self.discogs_id}'>"
+
+    @hybrid_property
+    def n_tracks(self):
+        return len(self.tracks)
 
     @classmethod
     def query_user_folder(cls, user, folder, **order_kws):
@@ -141,6 +151,33 @@ class Release(db.Model):
 
         return release
 
+    @property
+    def vinyl_tracks(self):
+        return [track for track in self.tracks if track.is_on_vinyl]
+
+    @property
+    def nonvinyl_tracks(self):
+        return [track for track in self.tracks if not track.is_on_vinyl]
+
+    def tracks_by_disc(self):
+        labels = [track.disc_id for track in self.vinyl_tracks]
+        side_i = accumulate(
+            [0] + [labels[i] != labels[i-1] for i in range(1, len(labels))]
+        )
+        disc_i = [side // 2 for side in list(side_i)]
+        
+        tl = {}
+        for i, d in enumerate(disc_i):
+            tl.setdefault(f"LP{d+1:d}", []).append(self.vinyl_tracks[i])
+
+        otl = {}
+        for t in self.nonvinyl_tracks:
+            otl.setdefault(t.disc_id, []).append(t)
+
+        return {**tl, **otl}
+        
+
+
 class Format(db.Model):
     __tablename__ = 'formats'
     id = Column(Integer, primary_key=True)
@@ -181,8 +218,34 @@ class Track(db.Model):
     release_id = Column(Integer, ForeignKey('releases.id', onupdate="CASCADE", ondelete="CASCADE"))
     release = relationship("Release", back_populates="tracks")
 
+    _track_re = re.compile(r'(?P<t>\d+)$')
+    _disc_re = re.compile(r'^(?P<m>[a-zA-Z0-9]+)(?=-?\d+$)')
+    _vinyl_disc_re = re.compile(r'^([a-zA-Z])\1*$')
+
     def __repr__(self):
         return f"<Track(position='{self.position}', title='{self.title}'>"
+
+    @property
+    def track_number(self):
+        m = re.search(self._track_re, self.position)    
+        if not m:
+            raise ValueError(f"{self}: Invalid track position?")
+        return int(m.groups('t')[0])
+
+    @property
+    def disc_id(self):
+        m = re.search(self._disc_re, self.position)
+        if not m:
+            return None
+        else:
+            return m.groups('m')[0]
+    @property
+    def disc_track_position(self):
+        return (self.disc_id, self.track_number)
+
+    @property
+    def is_on_vinyl(self):
+        return re.match(self._vinyl_disc_re, self.disc_id) is not None
 
 class Artist(db.Model):
     __tablename__ = 'artists'

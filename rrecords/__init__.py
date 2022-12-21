@@ -2,6 +2,7 @@ from flask import Flask, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_login import LoginManager
+from flask_migrate import Migrate
 from sqlalchemy import event
 from celery import Celery
 from config import Config
@@ -12,6 +13,7 @@ import os
 
 db = SQLAlchemy()
 ma = Marshmallow()
+migrate = Migrate()
 celery = Celery(__name__,
     broker=Config.CELERY_BROKER_URL,
     result_backend=Config.CELERY_RESULT_BACKEND
@@ -31,7 +33,7 @@ def create_app():
 
     db.init_app(app)
     ma.init_app(app)
-    
+    migrate.init_app(app, db)
     celery.conf.update(app.config)
 
     login_manager = LoginManager()
@@ -48,14 +50,17 @@ def create_app():
         db.create_all()
         event.listen(db.engine, 'connect', _fk_pragma_on_connect)
 
-        from .auth import auth_bp as auth_blueprint
-        app.register_blueprint(auth_blueprint)
+        from .auth import auth_bp
+        app.register_blueprint(auth_bp)
 
-        from .main import main_bp as main_blueprint
-        app.register_blueprint(main_blueprint)
+        from .main import main_bp
+        app.register_blueprint(main_bp)
 
-        from .discogs.routes import discogs_bp as discogs_blueprint
-        app.register_blueprint(discogs_blueprint)
+        from .discogs.routes import discogs_bp
+        app.register_blueprint(discogs_bp)
+
+        from .tasks import tasks_bp
+        app.register_blueprint(tasks_bp)
 
         register_error_handlers(app)
 

@@ -2,7 +2,31 @@
 
 {% block content %}
 
+<script>
+    function toggleContent(id) {
+        const checkbox = document.getElementById(id);
+        const textarea = document.getElementById(id+"div");
 
+        // var e = document.getElementById(id);
+        
+        textarea.style.visibility = checkbox.checked ? "visible" : "hidden";
+
+        // if (e.style.visibility == "hidden") {
+        //     e.style.visibility = "visible";
+        // } else {
+        //     e.style.visibility = "hidden";
+        // }
+    }
+    
+    function toggle(button) {
+        if (button.value == "OFF") {
+            button.value = "ON";
+        } else {
+            button.value = "OFF";
+        }
+    }
+
+</script>
 
 <div class="columns is-centered">
     <div class="column is-two-thirds ">
@@ -23,7 +47,15 @@
             </div>
             <div class="tile is-parent">
                 <div class="tile is-child box">
-                    <div class="content has-text-left">
+                    <input type="checkbox" class="btn-check" id="disc1" checked autocomplete="off" onclick="toggleContent('disc1');">
+                    <label class="btn btn-outline-secondary" for="disc1">Disc1</label><br>
+                    <!-- <div class="buttons">
+                        <button class="button is-primary is-outlined" onclick="toggleContent('disc1');">
+                            <span class="icon"><i class="fa-solid fa-record-vinyl"></i></span>
+                            <span>Disc1</span>
+                          </button>
+                    </div> -->
+                    <div id="disc1div" class="content has-text-left">
                     {% for track in item['tracks'] %}
                     <p>{{track['position']}} - {{track['title']}} - {{track['duration']}}</p>
                     {% endfor %}

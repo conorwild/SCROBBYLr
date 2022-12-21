@@ -21,6 +21,22 @@
             "justMyCode": true
         },
         {
+            "name": "Python: RRECORDS TASKS",
+            "type": "python",
+            "request": "launch",
+            "module": "flask",
+            "env": {
+                "FLASK_APP": "rrecords.py",
+                "FLASK_DEBUG": "1"
+            },
+            "args": [
+                "tasks",
+                "fix_tracklists",
+            ],
+            "jinja": true,
+            "justMyCode": true
+        },
+        {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
