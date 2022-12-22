@@ -7,3 +7,4 @@ obsolete/
 *.db
 .env
 *.db-journal
+*.afdesign

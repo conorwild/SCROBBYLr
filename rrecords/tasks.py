@@ -1,6 +1,7 @@
 
 from . import celery, db
 from .models import User, Release
+from .musicbrainz import MusicBrainzMatcher as MB
 from flask import Blueprint
 import click
 
@@ -25,3 +26,11 @@ def fix_tracklists():
             for field, new_value in new_track_data.items():
                 setattr(track, field, new_value)
         db.session.commit()
+
+@tasks_bp.cli.command('match_release')
+@click.argument("release_id")
+def match_release(release_id):
+    m = MB()
+    r = Release.query.get(release_id)
+    m.match_release(r)
+    

@@ -7,7 +7,7 @@ from sqlalchemy import event
 from celery import Celery
 from config import Config
 
-from .classes import CustomJSONDecoder, CustomJSONEncoder
+from .helper_classes import CustomJSONDecoder, CustomJSONEncoder
 import os
 
 

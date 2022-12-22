@@ -3,16 +3,16 @@ from flask import current_app as app
 
 from sqlalchemy import Table, Column, ForeignKey, Integer, String, DateTime
 from sqlalchemy import asc, desc
-from sqlalchemy.orm import relationship, declarative_base
-from sqlalchemy.ext.hybrid import hybrid_property, hybrid_method
+from sqlalchemy.orm import relationship, declarative_base, reconstructor
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from marshmallow.validate import Length, Range
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 from marshmallow import (
-    EXCLUDE, fields, pre_dump, pre_load, post_load, validates, ValidationError
+    EXCLUDE, fields, post_dump, pre_load, post_load, validates, ValidationError
 )
 
-from .classes import DiscogsClient
+from .helper_classes import DiscogsClient
 from discogs_client.models import PrimaryAPIObject
 from itertools import accumulate
 from sqlalchemy_get_or_create import get_or_create
@@ -56,7 +56,11 @@ class Release(db.Model):
     year = Column(Integer)
     discogs_id = Column(Integer, unique=True, nullable=False)
     master_id = Column(Integer, nullable=False)
+    musicbrainz_id = Column(String(36))
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     collections = relationship(
         "Collection", secondary=release_to_collection,
@@ -83,6 +87,20 @@ class Release(db.Model):
     def n_tracks(self):
         return len(self.tracks)
 
+    @property
+    def discs(self):
+        return self._assign_tracks_to_discs()
+
+    @property
+    def discogs_url(self):
+        return f"https://www.discogs.com/release/{self.discogs_id}"
+
+    @property
+    def musicbrainz_url(self):
+        if self.musicbrainz_id is None:
+            return None
+        return f"https://musicbrainz.org/release/{self.musicbrainz_id}"
+
     @classmethod
     def query_user_folder(cls, user, folder, **order_kws):
         _valid_fields = ['title', 'id', 'artists_sort', 'year', 'created_at']
@@ -105,11 +123,11 @@ class Release(db.Model):
     @classmethod
     def add_from_discogs(cls, discogs_release, commit=False):
 
-        data = release_schema.load(discogs_release)
+        data = release_w_track_schema.load(discogs_release)
         
         if not unique_field_value(cls, 'discogs_id', data['discogs_id']):
             print(f"Already found {data['title']}")
-            return
+            # return
 
         artists_data = data.pop('artists', None)
         formats_data = data.pop('formats', None)
@@ -118,9 +136,8 @@ class Release(db.Model):
         # Create / Find artists, append to .artists list on this release
         if artists_data:
             for artist_data in artists_data:
-                artist, got_it = get_or_create(db.session, Artist, **artist_data)
-                if got_it:
-                    release.artists.append(artist)
+                artist, _ = get_or_create(db.session, Artist, **artist_data)
+                release.artists.append(artist)
 
         # Create each format entry for this release, and append to list
         # Search for existing matching descriptions, if doesn't exist then
@@ -131,9 +148,8 @@ class Release(db.Model):
                 format = Format(**format_data)
                 if descriptions:
                     for description in descriptions:
-                        desc, got_it = get_or_create(db.session, FormatDescription, **description)
-                        if got_it:
-                            format.descriptions.append(desc)
+                        desc, _ = get_or_create(db.session, FormatDescription, **description)
+                        format.descriptions.append(desc)
 
                 release.formats.append(format)
 
@@ -159,24 +175,43 @@ class Release(db.Model):
     def nonvinyl_tracks(self):
         return [track for track in self.tracks if not track.is_on_vinyl]
 
-    def tracks_by_disc(self):
-        labels = [track.disc_id for track in self.vinyl_tracks]
-        side_i = accumulate(
-            [0] + [labels[i] != labels[i-1] for i in range(1, len(labels))]
+    def _assign_tracks_to_discs(self):
+
+        vinyl_discs = []
+        vinyl_ids = [track.disc_id for track in self.vinyl_tracks]
+        vinyl_formats = [
+            f_ for f in self.formats for f_ in [f]*f.qty if f_.name in Format._vinyl_names
+        ]
+
+        side_idxs = accumulate(
+            [vinyl_ids[i] != vinyl_ids[i-1] for i in range(len(vinyl_ids))]
         )
-        disc_i = [side // 2 for side in list(side_i)]
-        
-        tl = {}
-        for i, d in enumerate(disc_i):
-            tl.setdefault(f"LP{d+1:d}", []).append(self.vinyl_tracks[i])
+        disc_idxs = [(side-1)// 2 for side in list(side_idxs)]
 
-        otl = {}
+        for t_idx, d_idx in enumerate(disc_idxs):
+            if d_idx >= len(vinyl_discs):
+                vinyl_discs.append({
+                    'id': f"LP{d_idx+1}",
+                    'format': vinyl_formats[d_idx] if d_idx < len(vinyl_formats) else None,
+                    'tracks': [],
+                })
+            vinyl_discs[d_idx]['tracks'].append(self.vinyl_tracks[t_idx])
+
+        other_discs = {}
+        other_formats = [
+            f_ for f in self.formats for f_ in [f]*f.qty if f_.name in Format._other_names
+        ]
         for t in self.nonvinyl_tracks:
-            otl.setdefault(t.disc_id, []).append(t)
+            other_discs.setdefault(t.disc_id, []).append(t)
 
-        return {**tl, **otl}
+        other_discs = [{
+            'id': d_id,
+            'format': other_formats[d_idx] if d_idx < len(other_formats) else None,
+            'tracks': tracks,
+        } for d_idx, (d_id, tracks) in enumerate(other_discs.items())]
+
+        return vinyl_discs + other_discs
         
-
 
 class Format(db.Model):
     __tablename__ = 'formats'
@@ -184,15 +219,27 @@ class Format(db.Model):
     name = Column(String(32))
     qty = Column(Integer, nullable=False)
     text = Column(String(255))
-    release_id = Column(Integer, ForeignKey('releases.id', onupdate="CASCADE", ondelete="CASCADE"))
+    release_id = Column(
+        Integer, 
+        ForeignKey('releases.id', onupdate="CASCADE", ondelete="CASCADE")
+    )
     release = relationship("Release", back_populates="formats")
     descriptions = relationship(
         "FormatDescription", secondary=format_to_description,
         back_populates="formats"
     )
 
+    _vinyl_names = ['Vinyl']
+    _other_names = ['CD', 'DVD']
+
     def __repr__(self):
         return f"<Format id={self.id}, qty={self.qty}, name={self.name}>"
+
+    @property
+    def description_string(self):
+        return ", ".join(
+            filter(None, [self.text]+[d.text for d in self.descriptions])
+        ) or None
 
 class FormatDescription(db.Model):
     __tablename__ = 'format_descriptions'
@@ -215,11 +262,14 @@ class Track(db.Model):
     duration = Column(String(16))
     duration_s = Column(Integer)
 
-    release_id = Column(Integer, ForeignKey('releases.id', onupdate="CASCADE", ondelete="CASCADE"))
+    release_id = Column(
+        Integer, 
+        ForeignKey('releases.id', onupdate="CASCADE", ondelete="CASCADE")
+    )
     release = relationship("Release", back_populates="tracks")
 
     _track_re = re.compile(r'(?P<t>\d+)$')
-    _disc_re = re.compile(r'^(?P<m>[a-zA-Z0-9]+)(?=-?\d+$)')
+    _disc_re = re.compile(r'^(?P<m>[a-zA-Z0-9]+)')
     _vinyl_disc_re = re.compile(r'^([a-zA-Z])\1*$')
 
     def __repr__(self):
@@ -228,24 +278,28 @@ class Track(db.Model):
     @property
     def track_number(self):
         m = re.search(self._track_re, self.position)    
-        if not m:
-            raise ValueError(f"{self}: Invalid track position?")
+        if m is None:
+            return -1
         return int(m.groups('t')[0])
 
     @property
     def disc_id(self):
-        m = re.search(self._disc_re, self.position)
-        if not m:
-            return None
-        else:
-            return m.groups('m')[0]
+        m1 = re.search(self._track_re, self.position)
+        m2 = re.match(self._disc_re, self.position[:None if m1 is None else m1.span()[0]])
+        if m2 is None:
+            return "?"
+        return m2.groups()[0]
+        
     @property
     def disc_track_position(self):
         return (self.disc_id, self.track_number)
 
     @property
     def is_on_vinyl(self):
-        return re.match(self._vinyl_disc_re, self.disc_id) is not None
+        try:
+            return re.match(self._vinyl_disc_re, self.disc_id) is not None
+        except:
+            pass
 
 class Artist(db.Model):
     __tablename__ = 'artists'
@@ -268,7 +322,10 @@ class Collection(db.Model):
     id = Column(Integer, primary_key=True)
     note = Column(String(length=255), nullable=True)
     folder = Column(Integer, nullable=False)
-    user_id = Column(Integer, ForeignKey('users.id', onupdate="CASCADE", ondelete="CASCADE"))
+    user_id = Column(
+        Integer,
+        ForeignKey('users.id', onupdate="CASCADE", ondelete="CASCADE")
+    )
     user = relationship("User", back_populates="collections")
 
     releases = relationship(
@@ -427,16 +484,31 @@ class ReleaseSchema(DiscogsSchema):
     title = auto_field()
     artists_sort = auto_field()
     artists = fields.List(fields.Nested(lambda: ArtistSchema))
-    tracks = fields.List(fields.Nested(lambda: TrackSchema))
-    formats = fields.List(fields.Nested(lambda: FormatSchema))
+    formats = fields.Nested(lambda: FormatSchema, many=True)
     thumb = auto_field()
     cover_image = auto_field()
     year = auto_field()
     discogs_id = auto_field()
     master_id = auto_field()
     created_at = auto_field()
+    discogs_url = fields.Str()
+    musicbrainz_url = fields.Str()
 
-release_schema = ReleaseSchema()
+class ReleaseWithTracksSchema(ReleaseSchema):
+    tracks = fields.List(fields.Nested(lambda: TrackSchema))
+ 
+release_w_track_schema = ReleaseWithTracksSchema()
+
+class ReleaseWithDiscSchema(ReleaseSchema):
+    discs = fields.List(fields.Nested(lambda: DiscSchema))
+    
+release_w_disc_schema = ReleaseWithDiscSchema()
+
+class DiscSchema(ma.Schema):
+    id = fields.Str(required=True)
+    format = fields.Nested(lambda: FormatSchema)
+    tracks = fields.List(fields.Nested(lambda: TrackSchema))
+
 
 class TrackSchema(DiscogsSchema):
     class Meta:
@@ -479,13 +551,25 @@ class FormatSchema(ma.SQLAlchemySchema):
     class Meta:
         model = Format
 
+    # @post_dump(pass_many=False)
+    # def flatten_descriptions(self, data, **kwargs):
+    #     data['descriptions'] = ", ".join(data['descriptions']) or None
+    #     return data
+
+    @post_dump(pass_many=True)
+    def expand_qty(self, data, **kwargs):
+        if kwargs['many']:
+            data = [(f_ | {'qty': 1}) for f in data for f_ in [f]*f['qty']]
+        return data
+
     id = auto_field()
     name = auto_field()
     text = auto_field()
     qty = auto_field()
-    descriptions = fields.List(fields.Nested(FormatDescriptionSchema))
+    description_string = fields.Str()
+    descriptions = fields.List(fields.Nested(lambda: FormatDescriptionSchema))
 
-format_schema = FormatSchema()
+# format_schema = FormatSchema(many=True)
 
 
 

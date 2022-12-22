@@ -6,62 +6,84 @@
     function toggleContent(id) {
         const checkbox = document.getElementById(id);
         const textarea = document.getElementById(id+"div");
+        const button = document.getElementById(id+"button");
 
-        // var e = document.getElementById(id);
-        
-        textarea.style.visibility = checkbox.checked ? "visible" : "hidden";
-
-        // if (e.style.visibility == "hidden") {
-        //     e.style.visibility = "visible";
-        // } else {
-        //     e.style.visibility = "hidden";
-        // }
+        button.classList.toggle('is-active')
+        button.classList.toggle('is-focused')
+        textarea.style.display = checkbox.checked ? "block" : "none";
     }
-    
-    function toggle(button) {
-        if (button.value == "OFF") {
-            button.value = "ON";
-        } else {
-            button.value = "OFF";
-        }
-    }
-
 </script>
 
 <div class="columns is-centered">
-    <div class="column is-two-thirds ">
+    <div class="column is-four-fifths">
         <section class="section">
-            <h1 class="title has-text-left" >{{ item['title'] }}</h1>
-            <h2 class="subtitle has-text-left">{{ item['artists_sort'] }}</h2>
+            <h1 class="title has-text-left" >{{ item.title }}</h1>
+            <h2 class="subtitle has-text-left">{{ item.artists_sort }} ({{item.year}})</h2>
         </section>
-        <div class="tile is-ancestor">
-            <div class="tile is-4 is-vertical is-parent">
-                <div class="tile is-child box">
-                    <img src="{{ item['cover_image'] }}" />
-                </div>
-                <div class="tile is-child box">
-                    <figure class="image is-3by1">
-                        <a href="https://www.discogs.com/release/{{ item['discogs_id']}}"><img src="{{ url_for('main_bp.static', filename='images/discogs_logo.svg') }}" alt="discogs"/></a>
-                    </figure>
-                </div>
-            </div>
-            <div class="tile is-parent">
-                <div class="tile is-child box">
-                    <input type="checkbox" class="btn-check" id="disc1" checked autocomplete="off" onclick="toggleContent('disc1');">
-                    <label class="btn btn-outline-secondary" for="disc1">Disc1</label><br>
-                    <!-- <div class="buttons">
-                        <button class="button is-primary is-outlined" onclick="toggleContent('disc1');">
-                            <span class="icon"><i class="fa-solid fa-record-vinyl"></i></span>
-                            <span>Disc1</span>
-                          </button>
-                    </div> -->
-                    <div id="disc1div" class="content has-text-left">
-                    {% for track in item['tracks'] %}
-                    <p>{{track['position']}} - {{track['title']}} - {{track['duration']}}</p>
-                    {% endfor %}
+        <div class="columns is-variable">
+            <div class="column is-one-third">
+                <div class="tile is-vertical box">
+                    <div>
+                        <figure>
+                            <img src="{{ item.cover_image }}" />
+                        </figure>
                     </div>
                 </div>
+
+                <div class="tile is-vertical box">
+                    <nav class="level py-2">
+                        <div class="level-item">
+                            <a href="{{ item.musicbrainz_url }}">
+                                <img src="{{ url_for('main_bp.static', filename='images/musicbrainz_logo.png') }}" style="width:auto;height:25px;" alt="musicbrainz"/>
+                            </a>
+                        </div>
+                        <div class="level-item">
+                            <a href="{{ item.discogs_url }}">
+                                <img src="{{ url_for('main_bp.static', filename='images/discogs_logo.svg') }}" style="width:auto;height:25px;" alt="discogs"/>
+                            </a>
+                        </div>
+                    </nav>
+                </div>
             </div>
+            <div class="column is-one-half">
+                <div class="tile is-vertical box">
+                    <nav class="level">
+                        <div class="buttons">
+                            {% for disc in item['discs'] %}
+                            <input type="checkbox" class="btn-check" id="{{ disc.id }}" checked autocomplete="off" onclick="toggleContent('{{ disc.id }}');">
+                            <label class="button is-focused is-active" for="{{ disc.id }}" id="{{ disc.id }}button">{{ disc.id }}</label>
+                            {% endfor %}
+                        </div>
+                    </nav>
+
+                    {% for disc in item.discs %}
+                        <div id="{{ disc.id }}div" class="content is-small">
+                            <table class="table is-striped">
+                                <thead>
+                                    <tr>
+                                        <th>{{ disc.format.name }}</th>
+                                        <td colspan="2">{{ disc.format.description_string }}</td>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for track in disc.tracks %}
+                                    <tr>                                        <th>{{track.position}}</th>
+                                        <td>{{track.title}}</td>
+                                        <td>{{track.duration}}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="column is-one-fifth">
+                <div class="tile is-vertical box">
+
+                </div>
+            </div>
+
         </div>
     </div>
 </div>

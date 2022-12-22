@@ -12,14 +12,24 @@
     <script defer src="https://use.fontawesome.com/releases/v5.6.3/js/all.js"></script>
 </head>
 
+
 <body>
     <section class="hero is-primary is-fullheight">
 
         <div class="hero-head">
             <nav class="navbar">
                 <div class="container">
+                    <div class="navbar-brand">
+                        <!-- <img width="40" height="40" src="{{ url_for('static', filename='images/rrecords_logo.png') }}" /> -->
+                    
+                        <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false">
+                          <span aria-hidden="true"></span>
+                          <span aria-hidden="true"></span>
+                          <span aria-hidden="true"></span>
+                        </a>
+                      </div>
                     <div id="navbarMenuHeroA" class="navbar-menu">
-                        <div class="navbar-end">
+                        <div class="navbar-end is-active">
                             <a href="{{ url_for('main_bp.index') }}" class="navbar-item">
                                 Home
                             </a>

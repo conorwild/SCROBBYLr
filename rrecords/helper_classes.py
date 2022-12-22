@@ -3,7 +3,6 @@ from discogs_client.exceptions import HTTPError
 from json import JSONEncoder, JSONDecoder
 import jsonpickle
 
-
 class DiscogsClient(DiscogsClient):
 
     def to_json(self):
@@ -16,7 +15,7 @@ class DiscogsClient(DiscogsClient):
 
         except HTTPError:
             return False
-        
+    
 
 class CustomJSONEncoder(JSONEncoder):
     """https://stackoverflow.com/questions/42937612/why-must-a-flask-sessions-value-be-json-serializable

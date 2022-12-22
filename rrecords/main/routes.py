@@ -5,7 +5,7 @@ from flask_login import login_required, current_user
 
 from . import main_bp
 from .. import db
-from ..models import Release, release_schema
+from ..models import Release, release_w_disc_schema
 from ..tasks import sync_w_discogs
 
 @main_bp.route('/')
@@ -63,11 +63,9 @@ def update_collection(folder):
     sync_w_discogs.apply_async(args=[current_user.id, folder])
     return redirect(url_for('main_bp.collection', folder=folder))
 
-from ..models import ReleaseSchema
-
 @main_bp.route('/release/<id>', methods=["GET", "POST"])
 def release(id):
-    release = release_schema.dump(Release.query.get(id))
+    release = release_w_disc_schema.dump(Release.query.get(id))
     if request.method == "GET":
         return render_template(
             'release.html', item=release
@@ -76,7 +74,9 @@ def release(id):
 
 @main_bp.route('/test')
 def test():
-    current_user.sync_with_discogs()
+    dc = current_user.open_discogs()
+    rr = dc.release(24971641)
+    Release.add_from_discogs(rr)
 
 @main_bp.route('/admin')
 def admin():
