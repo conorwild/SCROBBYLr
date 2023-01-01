@@ -12,6 +12,7 @@ from marshmallow import (
     EXCLUDE, fields, post_dump, pre_load, post_load, validates, ValidationError
 )
 
+from flatdict import FlatDict
 from .helper_classes import DiscogsClient
 from discogs_client.models import PrimaryAPIObject
 from itertools import accumulate
@@ -46,6 +47,49 @@ format_to_description = Table(
     Column("format_description_id", ForeignKey("format_descriptions.id"), primary_key=True),
 )
 
+class MusicbrainzRelease(db.Model):
+    __tablename__ = 'mb_releases'
+    id = Column(Integer, primary_key=True)
+    mb_id = Column(String(36))
+    releases = relationship("Release", back_populates="mb_release")
+
+    tracks = relationship(
+        "MusicbrainzTrack", back_populates="mb_release",
+        cascade='all, delete-orphan'
+    )
+
+    @classmethod
+    def get_or_create(cls, release_data, commit=True):
+        tracks_data = release_data.pop('tracks', None)
+        mb_release, is_new = get_or_create(db.session, cls, **release_data)
+
+        if is_new:
+            for track_data in tracks_data:
+                mb_track, _ = get_or_create(
+                    db.session, MusicbrainzTrack, **track_data
+                )
+                mb_release.tracks.append(mb_track)
+
+        db.session.add(mb_release)
+
+        if commit:
+            db.session.commit()
+
+        return mb_release
+
+class MusicbrainzTrack(db.Model):
+    __table__name = 'mb_tracks'
+    id = Column(Integer, primary_key=True)
+    mb_id = Column(String(36))
+    mb_release_id = Column(Integer, ForeignKey('mb_releases.id'))
+    mb_release = relationship("MusicbrainzRelease", back_populates="tracks")
+    title = Column(String(255))
+    position = Column(Integer())
+    number = Column(String(16))
+    duration = Column(String(16))
+    duration_s = Column(Integer)
+    recording_mb_id = Column(String(36))
+    
 class Release(db.Model):
     __tablename__ = 'releases'
     id = Column(Integer, primary_key=True)
@@ -56,11 +100,10 @@ class Release(db.Model):
     year = Column(Integer)
     discogs_id = Column(Integer, unique=True, nullable=False)
     master_id = Column(Integer, nullable=False)
-    musicbrainz_id = Column(String(36))
     created_at = Column(DateTime, default=datetime.utcnow)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    mb_release_id = Column(Integer, ForeignKey('mb_releases.id'))
+    mb_release = relationship("MusicbrainzRelease", back_populates="releases")
+    mb_match_code = Column(Integer)
 
     collections = relationship(
         "Collection", secondary=release_to_collection,
@@ -88,6 +131,13 @@ class Release(db.Model):
         return len(self.tracks)
 
     @property
+    def n_discs(self):
+        valid_formats = Format._vinyl_names + Format._other_names
+        return sum(
+            [f.qty for f in self.formats if f.name in valid_formats]
+        )
+
+    @property
     def discs(self):
         return self._assign_tracks_to_discs()
 
@@ -97,9 +147,9 @@ class Release(db.Model):
 
     @property
     def musicbrainz_url(self):
-        if self.musicbrainz_id is None:
+        if self.mb_release is None:
             return None
-        return f"https://musicbrainz.org/release/{self.musicbrainz_id}"
+        return f"https://musicbrainz.org/release/{self.mb_release.mb_id}"
 
     @classmethod
     def query_user_folder(cls, user, folder, **order_kws):
@@ -269,7 +319,7 @@ class Track(db.Model):
     release = relationship("Release", back_populates="tracks")
 
     _track_re = re.compile(r'(?P<t>\d+)$')
-    _disc_re = re.compile(r'^(?P<m>[a-zA-Z0-9]+)')
+    _disc_re = re.compile(r'^(LP-)?(?P<m>[a-zA-Z0-9]+)')
     _vinyl_disc_re = re.compile(r'^([a-zA-Z])\1*$')
 
     def __repr__(self):
@@ -288,7 +338,7 @@ class Track(db.Model):
         m2 = re.match(self._disc_re, self.position[:None if m1 is None else m1.span()[0]])
         if m2 is None:
             return "?"
-        return m2.groups()[0]
+        return m2.groups()[-1]
         
     @property
     def disc_track_position(self):
@@ -551,11 +601,6 @@ class FormatSchema(ma.SQLAlchemySchema):
     class Meta:
         model = Format
 
-    # @post_dump(pass_many=False)
-    # def flatten_descriptions(self, data, **kwargs):
-    #     data['descriptions'] = ", ".join(data['descriptions']) or None
-    #     return data
-
     @post_dump(pass_many=True)
     def expand_qty(self, data, **kwargs):
         if kwargs['many']:
@@ -569,7 +614,56 @@ class FormatSchema(ma.SQLAlchemySchema):
     description_string = fields.Str()
     descriptions = fields.List(fields.Nested(lambda: FormatDescriptionSchema))
 
-# format_schema = FormatSchema(many=True)
+class MusicbrainzSchema(ma.SQLAlchemySchema):
+
+    @pre_load()
+    def convert_musicbrainz(self, mb_data, **kwargs):
+        if 'id' in mb_data:
+            mb_data['mb_id'] = mb_data.pop('id')
+        return mb_data
+
+class MusicbrainzReleaseSchema(MusicbrainzSchema):
+
+    class Meta:
+        model = MusicbrainzRelease
+        unknown = EXCLUDE
+
+    @pre_load()
+    def extract_tracks(self, mb_data, **kwargs):
+        mb_data['tracks'] = [
+            t for m in mb_data['medium-list'] for t in m['track-list']
+        ]
+        return mb_data
+
+    id = auto_field()
+    mb_id = auto_field()
+    tracks = fields.List(fields.Nested(lambda: MusicbrainzTrackSchema))
+
+class MusicbrainzTrackSchema(MusicbrainzSchema):
+
+    @pre_load
+    def preprocess_track(self, mb_track, **kwargs):
+        mb_track = dict(FlatDict(mb_track, delimiter='_'))
+        secs = int(int(mb_track['length'])/1000)
+        mb_track['duration_s'] = secs
+        mb_track['duration'] = f"{secs//60:d}:{secs%60:d}"
+        mb_track['title'] = mb_track.pop('recording_title')
+        mb_track['recording_mb_id'] = mb_track.pop('recording_id')
+        return mb_track
+
+    class Meta:
+        model = MusicbrainzTrack
+        unknown = EXCLUDE
+
+    id = auto_field()
+    mb_id = auto_field()
+    title = auto_field()
+    duration = auto_field()
+    duration_s = auto_field()
+    recording_mb_id = auto_field()
 
 
+    
 
+mb_release_schema = MusicbrainzReleaseSchema()
+mb_track_schema = MusicbrainzTrackSchema()

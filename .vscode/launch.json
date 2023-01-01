@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "RRECORDS Web",
+            "name": "R2 Web",
             "type": "python",
             "request": "launch",
             "module": "flask",
@@ -21,7 +21,23 @@
             "justMyCode": true
         },
         {
-            "name": "RRECORDS TASKS",
+            "name": "R2 match all",
+            "type": "python",
+            "request": "launch",
+            "module": "flask",
+            "env": {
+                "FLASK_APP": "rrecords.py",
+                "FLASK_DEBUG": "1"
+            },
+            "args": [
+                "tasks",
+                "match_all_releases",
+            ],
+            "jinja": true,
+            "justMyCode": true
+        },
+        {
+            "name": "R2 match one",
             "type": "python",
             "request": "launch",
             "module": "flask",

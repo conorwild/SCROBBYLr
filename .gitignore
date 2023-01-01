@@ -8,3 +8,4 @@ obsolete/
 .env
 *.db-journal
 *.afdesign
+dump.rdb
