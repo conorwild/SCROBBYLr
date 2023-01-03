@@ -51,12 +51,15 @@ class MusicbrainzRelease(db.Model):
     __tablename__ = 'mb_releases'
     id = Column(Integer, primary_key=True)
     mb_id = Column(String(36))
-    releases = relationship("Release", back_populates="mb_release")
+    matches = relationship("Release", back_populates="mb_match")
 
     tracks = relationship(
         "MusicbrainzTrack", back_populates="mb_release",
         cascade='all, delete-orphan'
     )
+
+    def __repr__(self):
+        return f"<mbRelease {self.id}>"
 
     @classmethod
     def get_or_create(cls, release_data, commit=True):
@@ -78,17 +81,21 @@ class MusicbrainzRelease(db.Model):
         return mb_release
 
 class MusicbrainzTrack(db.Model):
-    __table__name = 'mb_tracks'
+    __tablename__ = 'mb_tracks'
     id = Column(Integer, primary_key=True)
     mb_id = Column(String(36))
     mb_release_id = Column(Integer, ForeignKey('mb_releases.id'))
     mb_release = relationship("MusicbrainzRelease", back_populates="tracks")
     title = Column(String(255))
-    position = Column(Integer())
-    number = Column(String(16))
+    position = Column(String(16))
+    number = Column(Integer())
     duration = Column(String(16))
     duration_s = Column(Integer)
     recording_mb_id = Column(String(36))
+    matches = relationship("Track", back_populates="mb_match")
+
+    def __repr__(self):
+        return f"<mbTrack {self.id} title=\"{self.title}\" pos=\"{self.position}\">"
     
 class Release(db.Model):
     __tablename__ = 'releases'
@@ -101,8 +108,8 @@ class Release(db.Model):
     discogs_id = Column(Integer, unique=True, nullable=False)
     master_id = Column(Integer, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
-    mb_release_id = Column(Integer, ForeignKey('mb_releases.id'))
-    mb_release = relationship("MusicbrainzRelease", back_populates="releases")
+    mb_match_id = Column(Integer, ForeignKey('mb_releases.id'))
+    mb_match = relationship("MusicbrainzRelease", back_populates="matches")
     mb_match_code = Column(Integer)
 
     collections = relationship(
@@ -124,7 +131,7 @@ class Release(db.Model):
     )
 
     def __repr__(self):
-        return f"<Release(id={self.id}, title='{self.title}, discogs_id={self.discogs_id}'>"
+        return f"<Release id={self.id}, title='{self.title}, discogs_id={self.discogs_id}'>"
 
     @hybrid_property
     def n_tracks(self):
@@ -147,9 +154,9 @@ class Release(db.Model):
 
     @property
     def musicbrainz_url(self):
-        if self.mb_release is None:
+        if self.mb_match is None:
             return None
-        return f"https://musicbrainz.org/release/{self.mb_release.mb_id}"
+        return f"https://musicbrainz.org/release/{self.mb_match.mb_id}"
 
     @classmethod
     def query_user_folder(cls, user, folder, **order_kws):
@@ -318,12 +325,16 @@ class Track(db.Model):
     )
     release = relationship("Release", back_populates="tracks")
 
+    mb_match_id = Column(Integer, ForeignKey('mb_tracks.id'))
+    mb_match = relationship("MusicbrainzTrack", back_populates="matches")
+    mb_match_code = Column(Integer)
+
+    def __repr__(self):
+        return f"<Track(position='{self.position}', title='{self.title}')>"
+
     _track_re = re.compile(r'(?P<t>\d+)$')
     _disc_re = re.compile(r'^(LP-)?(?P<m>[a-zA-Z0-9]+)')
     _vinyl_disc_re = re.compile(r'^([a-zA-Z])\1*$')
-
-    def __repr__(self):
-        return f"<Track(position='{self.position}', title='{self.title}'>"
 
     @property
     def track_number(self):
@@ -350,6 +361,19 @@ class Track(db.Model):
             return re.match(self._vinyl_disc_re, self.disc_id) is not None
         except:
             pass
+
+    @property
+    def musicbrainz_url(self):
+        if self.mb_match is None:
+            return None
+        return f"https://musicbrainz.org/track/{self.mb_match.mb_id}"
+
+    @property
+    def musicbrainz_description(self):
+        if self.mb_match is None:
+            return None
+        mb = self.mb_match
+        return f"{mb.position} - {mb.title} ({mb.duration})"
 
 class Artist(db.Model):
     __tablename__ = 'artists'
@@ -583,6 +607,8 @@ class TrackSchema(DiscogsSchema):
     title = auto_field()
     duration = auto_field()
     duration_s = auto_field()
+    musicbrainz_url = fields.Str()
+    musicbrainz_description = fields.Str()
 
 track_schema = TrackSchema()
 
@@ -641,14 +667,28 @@ class MusicbrainzReleaseSchema(MusicbrainzSchema):
 
 class MusicbrainzTrackSchema(MusicbrainzSchema):
 
+    _valid_duration_fields = [
+        'length', 'track_or_recording_length', 'recording_length'
+    ]
+
     @pre_load
     def preprocess_track(self, mb_track, **kwargs):
         mb_track = dict(FlatDict(mb_track, delimiter='_'))
-        secs = int(int(mb_track['length'])/1000)
-        mb_track['duration_s'] = secs
-        mb_track['duration'] = f"{secs//60:d}:{secs%60:d}"
+        dfield = (
+            [k for k in  self._valid_duration_fields if k in mb_track]+[None]
+        )[0]
+        if dfield is not None:
+            secs = int(int(mb_track[dfield])/1000)
+            mb_track['duration_s'] = secs
+            mb_track['duration'] = f"{secs//60:d}:{secs%60:02d}"
+            
         mb_track['title'] = mb_track.pop('recording_title')
+        
+        # Rename to make it clear this is MB id
         mb_track['recording_mb_id'] = mb_track.pop('recording_id')
+
+        # Swap to make these consitent with Discogs terminology
+        mb_track['position'], mb_track['number'] = mb_track['number'], mb_track['position']
         return mb_track
 
     class Meta:
@@ -658,12 +698,11 @@ class MusicbrainzTrackSchema(MusicbrainzSchema):
     id = auto_field()
     mb_id = auto_field()
     title = auto_field()
+    position = auto_field()
+    number = auto_field()
     duration = auto_field()
     duration_s = auto_field()
-    recording_mb_id = auto_field()
-
-
-    
+    recording_mb_id = auto_field()  
 
 mb_release_schema = MusicbrainzReleaseSchema()
 mb_track_schema = MusicbrainzTrackSchema()

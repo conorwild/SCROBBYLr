@@ -62,14 +62,22 @@
                                 <thead>
                                     <tr>
                                         <th>{{ disc.format.name }}</th>
-                                        <td colspan="2">{{ disc.format.description_string }}</td>
+                                        <td colspan="3">{{ disc.format.description_string }}</td>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for track in disc.tracks %}
-                                    <tr>                                        <th>{{track.position}}</th>
+                                    <tr>
+                                        <th>{{track.position}}</th>
                                         <td>{{track.title}}</td>
                                         <td>{{track.duration}}</td>
+                                        <td>
+                                            {% if track.musicbrainz_url %}
+                                                <a data-tooltip="{{ track.musicbrainz_description }}" href="{{ track.musicbrainz_url }}">
+                                                    <img src="{{ url_for('main_bp.static', filename='images/musicbrainz.ico') }}" style="width:auto;height:10px;"/>
+                                                </a>
+                                            {% endif %}
+                                        </td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
