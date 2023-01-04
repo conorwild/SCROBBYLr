@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -o errexit
+set -o pipefail
+set -o nounset
+
+# flask db upgradedocker
+python -m debugpy --wait-for-client --listen 0.0.0.0:5678 -m flask --app rrecords run --host=0.0.0.0
