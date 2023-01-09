@@ -2,6 +2,7 @@ from flask import Flask, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_login import LoginManager
+from flask_moment import Moment
 from flask_migrate import Migrate
 from sqlalchemy import event
 from celery import Celery
@@ -14,6 +15,7 @@ import os
 db = SQLAlchemy()
 ma = Marshmallow()
 migrate = Migrate()
+moment = Moment()
 celery = Celery(__name__,
     broker=Config.CELERY_BROKER_URL,
     result_backend=Config.CELERY_RESULT_BACKEND
@@ -35,7 +37,8 @@ def create_app():
     ma.init_app(app)
     migrate.init_app(app, db)
     celery.conf.update(app.config)
-
+    moment.init_app(app)
+    
     login_manager = LoginManager()
     login_manager.login_view = 'auth_bp.login'
     login_manager.init_app(app)

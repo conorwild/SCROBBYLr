@@ -31,18 +31,40 @@
                 </div>
 
                 <div class="tile is-vertical box">
-                    <nav class="level py-2">
-                        <div class="level-item">
-                            <a href="{{ item.musicbrainz_url }}">
-                                <img src="{{ url_for('main_bp.static', filename='images/musicbrainz_logo.png') }}" style="width:auto;height:25px;" alt="musicbrainz"/>
-                            </a>
-                        </div>
-                        <div class="level-item">
-                            <a href="{{ item.discogs_url }}">
-                                <img src="{{ url_for('main_bp.static', filename='images/discogs_logo_2.png') }}" style="width:auto;height:25px;" alt="discogs"/>
-                            </a>
-                        </div>
-                    </nav>
+                    <div class="content">
+                        {{ moment().format('MMMM Do YYYY') }}, <b>{{ moment().format('h:mm:ss a') }}</b>
+                    </div>
+                    <div class="field has-addons">
+                        <p class="control">
+                            <a class="button is-static is-small has-background-white has-text-dark">Playback</a>
+                        </p>
+                        <p class="control">
+                            <span class="select is-small">
+                                <select>
+                                    <option>started</option>
+                                    <option>stopped</option>
+                                </select>
+                            </span>
+                        </p>
+                        <p class="control is-expanded">
+                            <span class="select is-fullwidth is-small">
+                                <select>
+                                    <option>30 minutes ago</option>
+                                    <option>15 minutes ago</option>
+                                    <option>10 minutes ago</option>
+                                    <option>5 minutes ago</option>
+                                    <option selected="selected">now</option>
+                                    <option>in 5 minutes</option>
+                                    <option>in 10 minutes</option>
+                                    <option>in 15 minutes</option>
+                                    <option>in 30 minutes</option>
+                                </select>
+                            </span>
+                        </p>
+                    </div>
+
+                    <button class="button is-primary is-centered">SCRYBL</button>
+
                 </div>
             </div>
             <div class="column is-one-half">
@@ -88,7 +110,16 @@
             </div>
             <div class="column is-one-fifth">
                 <div class="tile is-vertical box">
-
+                    <div class="level-item">
+                        <a href="{{ item.musicbrainz_url }}">
+                            <img src="{{ url_for('main_bp.static', filename='images/musicbrainz_logo.png') }}" style="width:auto;height:25px;" alt="musicbrainz"/>
+                        </a>
+                    </div>
+                    <div class="level-item">
+                        <a href="{{ item.discogs_url }}">
+                            <img src="{{ url_for('main_bp.static', filename='images/discogs_logo_2.png') }}" style="width:auto;height:25px;" alt="discogs"/>
+                        </a>
+                    </div>
                 </div>
             </div>
 
