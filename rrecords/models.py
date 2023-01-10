@@ -9,7 +9,9 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from marshmallow.validate import Length, Range
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 from marshmallow import (
-    EXCLUDE, fields, post_dump, pre_load, post_load, validates, ValidationError
+    EXCLUDE, fields,
+    pre_dump, post_dump, pre_load, post_load, validates,
+    ValidationError
 )
 
 from flatdict import FlatDict
@@ -599,6 +601,15 @@ class TrackSchema(DiscogsSchema):
         if re.match('\d+:\d+', data['duration']):
             m, s = data['duration'].split(':')
             data['duration_s'] = int(m)*60 + int(s)
+        return data
+
+    @pre_dump
+    def merge_mb_data(self, data, **kwargs):
+        if (data.duration_s is None) | (data.duration == ''):
+            if data.mb_match is not None:
+                data.duration = data.mb_match.duration
+                data.duration_s = data.mb_match.duration_s
+
         return data
 
     id = auto_field()

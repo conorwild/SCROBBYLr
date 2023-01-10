@@ -12,22 +12,20 @@
         {% endif %}
         {% endwith %}
         <form method="POST" action="/login">
+            {{ form.csrf_token }}
             <div class="field">
                 <div class="control">
-                    <input class="input is-large" type="email" name="email" {% if email %} value="{{ email }}" {% else %} placeholder="Email" {% endif %} autofocus="">
+                    {{ form.email(class="input is-medium", placeholder="Email", autofocus="") }}
                 </div>
             </div>
 
             <div class="field">
                 <div class="control">
-                    <input class="input is-large" type="password" name="password" placeholder="Your Password">
+                    {{ form.password(class="input is-medium", placeholder="Password", autofocus="") }}
                 </div>
             </div>
             <div class="field">
-                <label class="checkbox">
-                    <input type="checkbox" name="remember">
-                    Remember me
-                </label>
+                {{ form.remember(class="checkbox") }} {{ form.remember.label }} 
             </div>
             <button class="button is-block is-info is-large is-fullwidth">Login</button>
         </form>

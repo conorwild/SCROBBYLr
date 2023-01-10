@@ -7,50 +7,58 @@ from marshmallow.exceptions import ValidationError
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, login_required, logout_user
 from ..models import User, user_schema, Collection
+from ..forms import UserRegistrationForm, UserLoginForm, flash_errors
 from .. import db
 
 
-@auth_bp.route('/login')
+# @auth_bp.route('/login')
+# def login():
+#     email = request.args.get('email')
+#     return render_template('login.html', email=email)
+
+@auth_bp.route('/login', methods=['POST', 'GET'])
 def login():
-    email = request.args.get('email')
-    return render_template('login.html', email=email)
+    form = UserLoginForm(email=request.args.get('email'))
+    if request.method == "POST":
+        email = request.form.get('email')
+        password = request.form.get('password')
+        remember = True if request.form.get('remember') else False
 
-@auth_bp.route('/login', methods=['POST'])
-def login_post():
-    email = request.form.get('email')
-    password = request.form.get('password')
-    remember = True if request.form.get('remember') else False
+        user = User.query.filter_by(email=email).first()
 
-    user = User.query.filter_by(email=email).first()
+        if not user or not check_password_hash(user.password, password):
+            flash('Please check your login details and try again.')
+            return redirect(url_for('auth_bp.login'))
 
-    if not user or not check_password_hash(user.password, password):
-        flash('Please check your login details and try again.')
-        return redirect(url_for('auth_bp.login'))
+        session["name"] = user.name+"SESSION"
+        login_user(user, remember=remember)
+        return redirect(url_for('main_bp.profile'))
 
-    session["name"] = user.name+"SESSION"
-    login_user(user, remember=remember)
-    return redirect(url_for('main_bp.profile'))
+    return render_template('login.html', form=form)
 
 @auth_bp.route('/signup', methods=['GET', 'POST'])
 def signup():
+    form = UserRegistrationForm()
     if request.method == 'POST':
-        user_data = request.form.to_dict(flat=True)
-        try:
+
+        if form.validate_on_submit():
+            user_data = {
+                f:v for f,v in form.data.items() if f not in ['csrf_token']
+            }
             new_user = user_schema.load(user_data)
             new_user.password = generate_password_hash(
                 new_user.password, method='sha256'
             )
-            new_user.collections.append(Collection(folder=0, note='discogs 0'))
 
+            new_user.collections.append(Collection(folder=0, note='discogs 0'))
             db.session.add(new_user)
             db.session.commit()
             return redirect(url_for('auth_bp.login', email=new_user.email))
 
-        except ValidationError as errs:
-            field = list(errs.messages.keys())[0]
-            flash(f"{field.title()}: {errs.messages[field][0]}")
+        else:
+            flash_errors(form)
 
-    return render_template('signup.html', code=422)
+    return render_template('signup.html', form=form, code=422)
 
 @auth_bp.route('/logout')
 @login_required

@@ -70,7 +70,10 @@ def release(id):
         return render_template(
             'release.html', item=release
         )
-
+    elif request.method == "POST":
+        return render_template(
+            'release.html', item=release
+        )
 
 @main_bp.route('/test')
 def test():
