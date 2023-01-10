@@ -4,18 +4,22 @@
 
 <script>
     function toggleContent(id) {
-        const checkbox = document.getElementById(id);
-        const textarea = document.getElementById(id+"div");
+        const disc_selector = document.getElementById(id);
+        const disc_tracks = document.getElementById(id+"tracks");
         const button = document.getElementById(id+"button");
 
         button.classList.toggle('is-active')
         button.classList.toggle('is-focused')
-        textarea.style.display = checkbox.checked ? "block" : "none";
+        disc_tracks.style.display = disc_selector.checked ? "block" : "none";
+
+        $(disc_tracks).find('input[type=checkbox]').each(function(i, track) {
+            track.checked = disc_selector.checked;
+        });
     }
 </script>
 
 <div class="columns is-centered">
-    <div class="column is-four-fifths">
+    <div class="column is-10">
         <section class="section">
             <h1 class="title has-text-left" >{{ item.title }}</h1>
             <h2 class="subtitle has-text-left">{{ item.artists_sort }} ({{item.year}})</h2>
@@ -32,38 +36,42 @@
 
                 <div class="tile is-vertical box">
                     <div class="content">
-                        {{ moment().format('MMMM Do YYYY') }}, <b>{{ moment().format('h:mm:ss a') }}</b>
+                        {{ moment().format('MMM Do, YYYY') }} @ <b>{{ moment().format('h:mm a') }}</b>
                     </div>
+                    <form method="post">
                     <div class="field has-addons">
                         <p class="control">
                             <a class="button is-static is-small has-background-white has-text-dark">Playback</a>
                         </p>
                         <p class="control">
                             <span class="select is-small">
-                                <select>
-                                    <option>started</option>
-                                    <option>stopped</option>
+                                <select name="time_relative">
+                                    <option value="started">started</option>
+                                    <option value="stopped">stopped</option>
                                 </select>
                             </span>
                         </p>
                         <p class="control is-expanded">
                             <span class="select is-fullwidth is-small">
-                                <select>
-                                    <option>30 minutes ago</option>
-                                    <option>15 minutes ago</option>
-                                    <option>10 minutes ago</option>
-                                    <option>5 minutes ago</option>
-                                    <option selected="selected">now</option>
-                                    <option>in 5 minutes</option>
-                                    <option>in 10 minutes</option>
-                                    <option>in 15 minutes</option>
-                                    <option>in 30 minutes</option>
+                                <select name="offset_minutes">
+                                    <option value="-30">30 minutes ago</option>
+                                    <option value="-15">15 minutes ago</option>
+                                    <option value="-10">10 minutes ago</option>
+                                    <option value="-5">5 minutes ago</option>
+                                    <option selected="selected"value="0">now</option>
+                                    <option value="5">in 5 minutes</option>
+                                    <option value="10">in 10 minutes</option>
+                                    <option value="15">in 15 minutes</option>
+                                    <option value="30">in 30 minutes</option>
                                 </select>
                             </span>
                         </p>
                     </div>
-
-                    <button class="button is-primary is-centered">SCRYBL</button>
+                    <div class="field">
+                        <p class="control is-expanded">
+                            <button class="button is-link is-fullwidth" type="submit">SCRYBL</button>
+                        </p>
+                    </div>
 
                 </div>
             </div>
@@ -77,19 +85,25 @@
                             {% endfor %}
                         </div>
                     </nav>
-
                     {% for disc in item.discs %}
-                        <div id="{{ disc.id }}div" class="content is-small">
+                    {% set discloop = loop %}
+                        <div id="{{ disc.id }}tracks" class="content is-small">
                             <table class="table is-striped">
                                 <thead>
                                     <tr>
-                                        <th>{{ disc.format.name }}</th>
+                                        <th colspan="2">{{ disc.format.name }}</th>
                                         <td colspan="3">{{ disc.format.description_string }}</td>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for track in disc.tracks %}
+                                    {% set trackloop = loop %}
                                     <tr>
+                                        <th>
+                                            <label class="checkbox">
+                                                <input type="checkbox" name="{{ [discloop.index0, trackloop.index0]|join('-') }}" checked>
+                                            </label>
+                                        </th>
                                         <th>{{track.position}}</th>
                                         <td>{{track.title}}</td>
                                         <td>{{track.duration}}</td>
@@ -106,6 +120,7 @@
                             </table>
                         </div>
                     {% endfor %}
+                    </form>
                 </div>
             </div>
             <div class="column is-one-fifth">
