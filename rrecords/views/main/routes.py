@@ -1,12 +1,17 @@
+from datetime import datetime, timezone
 from flask import (
     render_template, current_app as app, url_for, abort, request, redirect
 )
 from flask_login import login_required, current_user
 
 from . import main_bp
-from .. import db
-from ..models import Release, release_w_disc_schema
-from ..tasks import sync_w_discogs
+from ... import db
+from ...models.models import Release
+from ...models.scrobbyls import ReleaseScrobbyl
+from ...schemas.schemas import release_w_disc_schema
+from ...forms.forms import ScrobbylReleaseForm
+from ...discogs import sync_collection
+
 
 @main_bp.route('/')
 def index():
@@ -60,20 +65,21 @@ def update_collection(folder):
     except ValueError:
         abort(422)
 
-    sync_w_discogs.apply_async(args=[current_user.id, folder])
+    sync_collection.apply_async(args=[current_user.id, folder])
     return redirect(url_for('main_bp.collection', folder=folder))
 
 @main_bp.route('/release/<id>', methods=["GET", "POST"])
 def release(id):
     release = release_w_disc_schema.dump(Release.query.get(id))
+    form = ScrobbylReleaseForm(**release, offset=0)
     if request.method == "GET":
         return render_template(
-            'release.html', item=release
+            'release.html', form=form
         )
     elif request.method == "POST":
-        return render_template(
-            'release.html', item=release
-        )
+        if form.validate_on_submit():
+
+            return redirect(url_for('main_bp.release', id=id))
 
 @main_bp.route('/test')
 def test():

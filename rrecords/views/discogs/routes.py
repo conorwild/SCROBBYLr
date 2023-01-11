@@ -8,7 +8,7 @@ from flask_login import login_required, current_user
 from discogs_client.exceptions import HTTPError
 
 from . import discogs_bp
-from .. import db
+from ... import db
 
 @app.errorhandler(HTTPError)
 def handle_bad_request(e):

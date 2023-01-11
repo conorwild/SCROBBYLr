@@ -8,9 +8,8 @@ from sqlalchemy import event
 from celery import Celery
 from config import Config
 
-from .helper_classes import CustomJSONDecoder, CustomJSONEncoder
+from .base import CustomJSONDecoder, CustomJSONEncoder
 import os
-
 
 db = SQLAlchemy()
 ma = Marshmallow()
@@ -43,7 +42,8 @@ def create_app():
     login_manager.login_view = 'auth_bp.login'
     login_manager.init_app(app)
 
-    from . import models
+    from .models import models
+    from .models import scrobbyls
 
     @login_manager.user_loader
     def load_user(user_id):
@@ -53,13 +53,13 @@ def create_app():
         db.create_all()
         event.listen(db.engine, 'connect', _fk_pragma_on_connect)
 
-        from .auth import auth_bp
+        from .views.auth import auth_bp
         app.register_blueprint(auth_bp)
 
-        from .main import main_bp
+        from .views.main import main_bp
         app.register_blueprint(main_bp)
 
-        from .discogs.routes import discogs_bp
+        from .views.discogs.routes import discogs_bp
         app.register_blueprint(discogs_bp)
 
         from .tasks import tasks_bp

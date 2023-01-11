@@ -1,17 +1,13 @@
-
-from . import celery, db
-from .models import User, Release
+from .models.models import User, Release
 from .musicbrainz import MusicbrainzMatcher
 from flask import Blueprint
 import click
 
+from . import celery, db
 
 tasks_bp = Blueprint('tasks', __name__)
 
-@celery.task(name='app.tasks.sync_w_discogs')
-def sync_w_discogs(user_id, folder):
-    user = User.query.get(user_id)
-    user.sync_with_discogs(folder=folder)
+
 
 @tasks_bp.cli.command('match_all_releases')
 @celery.task(name='app.tasks.match_all_releases')

@@ -1,7 +1,8 @@
-from .models import MusicbrainzRelease, mb_release_schema
+from .models.models import MusicbrainzRelease
+from .schemas.schemas import mb_release_schema
 from flask import current_app as app
 from musicbrainzngs import ResponseError as MusicBrainzResponseError
-from . import db
+
 from sqlalchemy_get_or_create import get_or_create
 
 import numpy as np
@@ -9,6 +10,8 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 from thefuzz.process import extractWithoutOrder
 from thefuzz.fuzz import ratio
+
+from . import db
 
 _SCALE = 100
 

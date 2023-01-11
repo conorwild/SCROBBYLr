@@ -21,15 +21,15 @@
 <div class="columns is-centered">
     <div class="column is-10">
         <section class="section">
-            <h1 class="title has-text-left" >{{ item.title }}</h1>
-            <h2 class="subtitle has-text-left">{{ item.artists_sort }} ({{item.year}})</h2>
+            <h1 class="title has-text-left" >{{ form.title.data }}</h1>
+            <h2 class="subtitle has-text-left">{{ form.artists_sort.data }} ({{form.year.data}})</h2>
         </section>
         <div class="columns is-variable">
             <div class="column is-one-third">
                 <div class="tile is-vertical box">
                     <div>
                         <figure>
-                            <img src="{{ item.cover_image }}" />
+                            <img src="{{ form.cover_image.data }}" />
                         </figure>
                     </div>
                 </div>
@@ -39,31 +39,19 @@
                         {{ moment().format('MMM Do, YYYY') }} @ <b>{{ moment().format('h:mm a') }}</b>
                     </div>
                     <form method="post">
+                    {{ form.csrf_token }}
                     <div class="field has-addons">
                         <p class="control">
                             <a class="button is-static is-small has-background-white has-text-dark">Playback</a>
                         </p>
                         <p class="control">
                             <span class="select is-small">
-                                <select name="time_relative">
-                                    <option value="started">started</option>
-                                    <option value="stopped">stopped</option>
-                                </select>
+                                {{ form.t0(class="select is-small") }}
                             </span>
                         </p>
                         <p class="control is-expanded">
                             <span class="select is-fullwidth is-small">
-                                <select name="offset_minutes">
-                                    <option value="-30">30 minutes ago</option>
-                                    <option value="-15">15 minutes ago</option>
-                                    <option value="-10">10 minutes ago</option>
-                                    <option value="-5">5 minutes ago</option>
-                                    <option selected="selected"value="0">now</option>
-                                    <option value="5">in 5 minutes</option>
-                                    <option value="10">in 10 minutes</option>
-                                    <option value="15">in 15 minutes</option>
-                                    <option value="30">in 30 minutes</option>
-                                </select>
+                                {{ form.offset(class="select is-small") }}
                             </span>
                         </p>
                     </div>
@@ -79,37 +67,39 @@
                 <div class="tile is-vertical box">
                     <nav class="level">
                         <div class="buttons">
-                            {% for disc in item['discs'] %}
-                            <input type="checkbox" class="btn-check" id="{{ disc.id }}" checked autocomplete="off" onclick="toggleContent('{{ disc.id }}');">
-                            <label class="button is-focused is-active" for="{{ disc.id }}" id="{{ disc.id }}button">{{ disc.id }}</label>
+                            {% for disc in form.discs %}
+                            {% set disc_id = disc.form.id.data %}
+                            <input type="checkbox" class="btn-check" id="{{ disc_id }}" checked autocomplete="off" onclick="toggleContent('{{ disc_id }}');">
+                            <label class="button is-focused is-active" for="{{ disc_id }}" id="{{ disc_id }}button">{{ disc_id }}</label>
                             {% endfor %}
                         </div>
                     </nav>
-                    {% for disc in item.discs %}
+                    {% for disc in form.discs %}
                     {% set discloop = loop %}
-                        <div id="{{ disc.id }}tracks" class="content is-small">
+                    {% set disc_data = disc.form.data %}
+                    {% set format_data = disc.format.form.data %}
+                        <div id="{{ disc_data['id'] }}tracks" class="content is-small">
                             <table class="table is-striped">
                                 <thead>
                                     <tr>
-                                        <th colspan="2">{{ disc.format.name }}</th>
-                                        <td colspan="3">{{ disc.format.description_string }}</td>
+                                        <th colspan="2">{{ format_data['name'] }}</th>
+                                        <td colspan="3">{{ format_data['description_string'] }}</td>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for track in disc.tracks %}
                                     {% set trackloop = loop %}
+                                    {% set track_data = track.form.data %}
                                     <tr>
                                         <th>
-                                            <label class="checkbox">
-                                                <input type="checkbox" name="{{ [discloop.index0, trackloop.index0]|join('-') }}" checked>
-                                            </label>
+                                            {{ track.scrobbyl() }}
                                         </th>
-                                        <th>{{track.position}}</th>
-                                        <td>{{track.title}}</td>
-                                        <td>{{track.duration}}</td>
+                                        <th>{{ track_data['position'] }}</th>
+                                        <td>{{ track_data['title'] }}</td>
+                                        <td>{{ track_data['duration'] }}</td>
                                         <td>
-                                            {% if track.musicbrainz_url %}
-                                                <a data-tooltip="{{ track.musicbrainz_description }}" href="{{ track.musicbrainz_url }}">
+                                            {% if track_data['musicbrainz_url'] %}
+                                                <a data-tooltip="{{ track_data['musicbrainz_description'] }}" href="{{ track_data['musicbrainz_url'] }}">
                                                     <img src="{{ url_for('main_bp.static', filename='images/musicbrainz.ico') }}" style="width:auto;height:10px;"/>
                                                 </a>
                                             {% endif %}
@@ -126,12 +116,12 @@
             <div class="column is-one-fifth">
                 <div class="tile is-vertical box">
                     <div class="level-item">
-                        <a href="{{ item.musicbrainz_url }}">
+                        <a href="{{ form.musicbrainz_url.data }}">
                             <img src="{{ url_for('main_bp.static', filename='images/musicbrainz_logo.png') }}" style="width:auto;height:25px;" alt="musicbrainz"/>
                         </a>
                     </div>
                     <div class="level-item">
-                        <a href="{{ item.discogs_url }}">
+                        <a href="{{ form.discogs_url.data }}">
                             <img src="{{ url_for('main_bp.static', filename='images/discogs_logo_2.png') }}" style="width:auto;height:25px;" alt="discogs"/>
                         </a>
                     </div>
