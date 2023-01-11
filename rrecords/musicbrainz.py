@@ -1,5 +1,5 @@
-from .models.models import MusicbrainzRelease
-from .schemas.schemas import mb_release_schema
+from .models.musicbrainz import MusicbrainzRelease
+from .schemas.musicbrainz import mb_release_schema
 from flask import current_app as app
 from musicbrainzngs import ResponseError as MusicBrainzResponseError
 
@@ -176,9 +176,3 @@ class MusicbrainzMatcher():
             idc, imb = dc_idx[i], mb_idx[i]
             release.tracks[idc].mb_match = release.mb_match.tracks[imb]
             release.tracks[idc].mb_match_code = distances[idc, imb]
-
-
-
-    # @property
-    # def mb(self):
-    #     return self._mb

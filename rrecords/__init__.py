@@ -42,12 +42,13 @@ def create_app():
     login_manager.login_view = 'auth_bp.login'
     login_manager.init_app(app)
 
-    from .models import models
+    from .models import base
     from .models import scrobbyls
+    from .models import musicbrainz
 
     @login_manager.user_loader
     def load_user(user_id):
-        return models.User.query.get(int(user_id))
+        return base.User.query.get(int(user_id))
 
     with app.app_context():
         db.create_all()

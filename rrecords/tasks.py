@@ -1,4 +1,4 @@
-from .models.models import User, Release
+from .models.base import User, Release
 from .musicbrainz import MusicbrainzMatcher
 from flask import Blueprint
 import click

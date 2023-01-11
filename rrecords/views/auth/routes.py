@@ -7,8 +7,8 @@ from marshmallow.exceptions import ValidationError
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_user, login_required, logout_user
 
-from ...models.models import User, Collection
-from ...schemas.schemas import user_schema
+from ...models.base import User, Collection
+from ...schemas.base import user_schema
 from ...forms.forms import UserRegistrationForm, UserLoginForm, flash_errors
 
 from ... import db

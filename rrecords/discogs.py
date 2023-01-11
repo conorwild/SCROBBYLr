@@ -1,11 +1,11 @@
 
 from sqlalchemy_get_or_create import get_or_create
-from .models.models import (
+from .models.base import (
     User, Artist, Release, Track, FormatDescription, Format,
     unique_field_value
 )
 
-from .schemas.schemas import release_w_track_schema, track_schema
+from .schemas.base import release_w_track_schema, track_schema
 from . import db, celery
 
 @celery.task(name='app.discogs.sync_collection')

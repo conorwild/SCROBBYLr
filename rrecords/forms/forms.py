@@ -8,7 +8,7 @@ from wtforms.validators import (
     InputRequired, Length, Email, ValidationError
 )
 
-from ..models.models import User
+from ..models.base import User
 
 def flash_errors(form):
     """ Flashes form errors

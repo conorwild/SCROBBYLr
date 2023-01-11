@@ -6,9 +6,9 @@ from flask_login import login_required, current_user
 
 from . import main_bp
 from ... import db
-from ...models.models import Release
+from ...models.base import Release
 from ...models.scrobbyls import ReleaseScrobbyl
-from ...schemas.schemas import release_w_disc_schema
+from ...schemas.base import release_w_disc_schema
 from ...forms.forms import ScrobbylReleaseForm
 from ...discogs import sync_collection
 
