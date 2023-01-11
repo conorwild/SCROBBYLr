@@ -20,7 +20,6 @@ def index():
 @main_bp.route('/profile')
 @login_required
 def profile():
-
     return render_template(
         'profile.html', 
         dc_connected=current_user.logged_into_discogs(),
@@ -36,6 +35,7 @@ def _validate_folder(folder):
     return folder
 
 @main_bp.route('/collection/<folder>', methods=["GET"])
+@login_required
 def collection(folder):
     folder = _validate_folder(folder)
 
@@ -46,6 +46,7 @@ def collection(folder):
     return render_template('collection.html', items=releases)
 
 @main_bp.route('/collection/<folder>/thumbs', methods=["GET"])
+@login_required
 def collection_thumbs(folder):
     folder = _validate_folder(folder)
     releases = Release.query_user_folder(
@@ -57,6 +58,7 @@ def collection_thumbs(folder):
     return render_template('thumbs.html', items=thumbs)
 
 @main_bp.route('/collection/<folder>/update')
+@login_required
 def update_collection(folder):
     try:
         folder = int(folder)
@@ -69,6 +71,7 @@ def update_collection(folder):
     return redirect(url_for('main_bp.collection', folder=folder))
 
 @main_bp.route('/release/<id>', methods=["GET", "POST"])
+@login_required
 def release(id):
     release = release_w_disc_schema.dump(Release.query.get(id))
     form = ScrobbylReleaseForm(**release, offset=0)
@@ -82,6 +85,7 @@ def release(id):
             return redirect(url_for('main_bp.release', id=id))
 
 @main_bp.route('/test')
+@login_required
 def test():
     dc = current_user.open_discogs()
     rr = dc.release(24971641)
