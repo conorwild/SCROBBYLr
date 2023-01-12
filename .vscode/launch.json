@@ -1,6 +1,7 @@
 {
     "version": "0.2.0",
     "configurations": [
+
         {
             "name": "Python: Remote Attach",
             "type": "python",
@@ -65,6 +66,24 @@
                 "tasks",
                 "match_release",
                 "12"
+            ],
+            "jinja": true,
+            "justMyCode": true
+        },
+        {
+            "name": "R2 sync collection",
+            "type": "python",
+            "request": "launch",
+            "module": "flask",
+            "env": {
+                "FLASK_APP": "rrecords.py",
+                "FLASK_DEBUG": "1"
+            },
+            "args": [
+                "tasks",
+                "sync_collection",
+                "1",
+                "1"
             ],
             "jinja": true,
             "justMyCode": true

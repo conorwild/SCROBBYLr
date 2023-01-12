@@ -4,11 +4,11 @@ from flask import (
 )
 
 from flask_login import login_required, current_user
-
 from discogs_client.exceptions import HTTPError
 
 from . import discogs_bp
 from ... import db
+from ...discogs import sync_folders
 
 @app.errorhandler(HTTPError)
 def handle_bad_request(e):
@@ -38,6 +38,8 @@ def auth():
     current_user.discogs_secret = secret
     current_user.discogs_account = client.identity().username
     db.session.commit()
+
+    sync_folders.apply_async(args=[current_user.id])
 
     return redirect(url_for('main_bp.profile'))
 

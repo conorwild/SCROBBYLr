@@ -7,8 +7,6 @@ from . import celery, db
 
 tasks_bp = Blueprint('tasks', __name__)
 
-
-
 @tasks_bp.cli.command('match_all_releases')
 @celery.task(name='app.tasks.match_all_releases')
 def match_releases_to_mb():

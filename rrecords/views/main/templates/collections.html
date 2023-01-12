@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="columns is-centered">
+    <div class="column is-half">
+        <section class="section">
+            <h1 class="title has-text-left" >COLLECTIONS</h1>
+        </section>
+        <div class="box">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>NAME</th>
+                        <th>SIZE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in collections %}
+                    <tr>
+                        <td>{{ c.discogs_id }}</td>
+                        <td>{{c.name}}</td>
+                        <td>{{c.size}}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+    

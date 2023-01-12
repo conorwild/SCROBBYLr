@@ -51,8 +51,6 @@ def signup():
             new_user.password = generate_password_hash(
                 new_user.password, method='sha256'
             )
-
-            new_user.collections.append(Collection(folder=0, note='discogs 0'))
             db.session.add(new_user)
             db.session.commit()
             return redirect(url_for('auth_bp.login', email=new_user.email))

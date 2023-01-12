@@ -47,13 +47,6 @@ class UserSchema(ma.SQLAlchemySchema):
 
 user_schema = UserSchema()
 
-class CollectionSchema(ma.SQLAlchemySchema):
-    class Meta:
-        model = Collection
-    note = auto_field()
-    folder = auto_field()
-    user = fields.Nested("UserSchema")
-
 class DiscogsSchema(ma.SQLAlchemySchema):
     
     @pre_load
@@ -74,6 +67,19 @@ class DiscogsSchema(ma.SQLAlchemySchema):
                 discogs_record[f] = d.strip()
 
         return discogs_record
+
+class CollectionSchema(DiscogsSchema):
+    class Meta:
+        model = Collection
+        unknown = EXCLUDE
+
+    id = auto_field()
+    name = auto_field()
+    discogs_id = auto_field()
+    resource_url = auto_field()
+    size = fields.Integer()
+
+collection_schema = CollectionSchema(many=True)
 
 def _strip_name(string):
     return re.sub(' \(\d+\)$', '', string)

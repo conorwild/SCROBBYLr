@@ -76,7 +76,7 @@ class Release(db.Model):
     )
 
     def __repr__(self):
-        return f"<Release id={self.id}, title='{self.title}, discogs_id={self.discogs_id}'>"
+        return f"<Release id={self.id}, title='{self.title}'>"
 
     @hybrid_property
     def n_tracks(self):
@@ -102,25 +102,6 @@ class Release(db.Model):
         if self.mb_match is None:
             return None
         return f"https://musicbrainz.org/release/{self.mb_match.mb_id}"
-
-    @classmethod
-    def query_user_folder(cls, user, folder, **order_kws):
-        _valid_fields = ['title', 'id', 'artists_sort', 'year', 'created_at']
-        _valid_directions = ['asc', 'desc']
-        ordering = []
-        for field, dir in order_kws.items():
-            if (field not in _valid_fields) | (dir not in _valid_directions):
-                raise ValueError
-            ordering.append(eval(dir)(field))
-
-        return (
-            cls.query.join(Collection.releases)
-            .filter(Collection.folder==folder)
-            .join(Collection.user)
-            .filter(User.id==user.id)
-            .order_by(*ordering)
-            .all()
-        )
 
     @property
     def vinyl_tracks(self):
@@ -292,8 +273,10 @@ class Artist(db.Model):
 class Collection(db.Model):
     __tablename__ = 'collections'
     id = Column(Integer, primary_key=True)
-    note = Column(String(length=255), nullable=True)
-    folder = Column(Integer, nullable=False)
+    name = Column(String(length=255), nullable=True)
+    discogs_id = Column(Integer, nullable=False, unique=True)
+    resource_url = Column(String(length=255))
+
     user_id = Column(
         Integer,
         ForeignKey('users.id', onupdate="CASCADE", ondelete="CASCADE")
@@ -304,6 +287,27 @@ class Collection(db.Model):
         "Release", secondary=release_to_collection,
         back_populates="collections"
     )
+
+    @hybrid_property
+    def size(self):
+        return len(self.releases)
+
+    @classmethod
+    def query_releases(cls, id, **order_kws):
+        _valid_fields = ['title', 'id', 'artists_sort', 'year', 'created_at']
+        _valid_directions = ['asc', 'desc']
+        ordering = []
+        for field, dir in order_kws.items():
+            if (field not in _valid_fields) | (dir not in _valid_directions):
+                raise ValueError
+            ordering.append(eval(dir)(field))
+
+        return (
+            Release.query.join(Collection.releases)
+            .filter(Collection.id==id)
+            .order_by(*ordering)
+            .all()
+        )
 
 class User(UserMixin, db.Model):
 

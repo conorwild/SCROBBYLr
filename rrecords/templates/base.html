@@ -18,7 +18,7 @@
     <section class="hero is-primary is-fullheight">
 
         <div class="hero-head">
-            <nav class="navbar">
+            <nav class="navbar is-primary">
                 <div class="container">
                     <div class="navbar-brand">
                         <!-- <img width="40" height="40" src="{{ url_for('static', filename='images/rrecords_logo.png') }}" /> -->
@@ -38,9 +38,18 @@
                             <a href="{{ url_for('main_bp.profile') }}" class="navbar-item">
                                 Profile
                             </a>
-                            <a href="{{ url_for('main_bp.collection_thumbs', folder=0, artists_sort='asc', title='asc') }}" class="navbar-item">
-                                Collection
-                            </a>
+                            <div class="navbar-item has-dropdown is-hoverable">
+                                <a href="{{ url_for('main_bp.collections') }}" class="navbar-link">
+                                    Collections
+                                </a>
+                                <div class="navbar-dropdown is-right has-background-primary">
+                                    {% for c in current_user.collections %}
+                                    <a class="navbar-item" href="{{ url_for('main_bp.collection', id=c.id, artists_sort='asc', title='asc') }}">
+                                      {{ c.name }}
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                            </div>
                             {% endif %}
                             {% if not current_user.is_authenticated %}
                             <a href="{{ url_for('auth_bp.login') }}" class="navbar-item">
