@@ -1,20 +1,17 @@
+import re
+from itertools import accumulate
+from datetime import datetime
 from flask_login import UserMixin
 from flask import current_app as app
 
+from sqlalchemy.orm import relationship
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy import (
     Table, Column, ForeignKey, Integer, String, DateTime,
     asc, desc
 )
 
-from sqlalchemy.orm import relationship
-from sqlalchemy.ext.hybrid import hybrid_property
-
 from ..base import DiscogsClient
-from itertools import accumulate
-
-from datetime import datetime
-import re
-
 from .. import db
 
 def unique_field_value(model, field, value):
@@ -81,6 +78,10 @@ class Release(db.Model):
     @hybrid_property
     def n_tracks(self):
         return len(self.tracks)
+
+    @hybrid_property
+    def is_matched(self):
+        return self.mb_match is not None
 
     @property
     def n_discs(self):
@@ -197,16 +198,16 @@ class Track(db.Model):
     title = Column(String(128))
     duration = Column(String(16))
     duration_s = Column(Integer)
-
     release_id = Column(
         Integer, 
         ForeignKey('releases.id', onupdate="CASCADE", ondelete="CASCADE")
     )
-    release = relationship("Release", back_populates="tracks")
-
     mb_match_id = Column(Integer, ForeignKey('mb_tracks.id'))
-    mb_match = relationship("MusicbrainzTrack", back_populates="matches")
     mb_match_code = Column(Integer)
+
+    release = relationship("Release", back_populates="tracks")
+    mb_match = relationship("MusicbrainzTrack", back_populates="matches")
+    scrobbyls = relationship("TrackScrobbyl", back_populates="track")
 
     def __repr__(self):
         return f"<Track(position='{self.position}', title='{self.title}')>"
@@ -268,12 +269,19 @@ class Artist(db.Model):
     )
 
     def __repr__(self):
-        return f"<Artist(id={self.id}, name='{self.name}, discogs_id={self.discogs_id}'>"
+        return (
+            f"<Artist "
+            f"id={self.id} "
+            f"name={self.name} "
+            f"discogs_id={self.discogs_id}"
+            ">"
+        )
 
 class Collection(db.Model):
     __tablename__ = 'collections'
     id = Column(Integer, primary_key=True)
     name = Column(String(length=255), nullable=True)
+    count = Column(Integer)
     discogs_id = Column(Integer, nullable=False, unique=True)
     resource_url = Column(String(length=255))
 
@@ -289,8 +297,17 @@ class Collection(db.Model):
     )
 
     @hybrid_property
-    def size(self):
+    def n_synced(self):
         return len(self.releases)
+
+    @hybrid_property
+    def n_matched(self):
+        return (
+            Release.query.join(Collection.releases)
+            .filter(Collection.id==self.id)
+            .filter(Release.mb_match != None)
+            .count()
+        )
 
     @classmethod
     def query_releases(cls, id, **order_kws):
@@ -307,6 +324,15 @@ class Collection(db.Model):
             .filter(Collection.id==id)
             .order_by(*ordering)
             .all()
+        )
+
+    def __repr__(self):
+        return(
+            f"<Collection "
+            f"id={self.id} "
+            f"user={self.user_id} "
+            f"({self.n_synced}/{self.count})"
+            ">"
         )
 
 class User(UserMixin, db.Model):
@@ -332,6 +358,10 @@ class User(UserMixin, db.Model):
 
     def __repr__(self):
         return f"<User(id={self.id}, name='{self.name}', email='{self.email}'>"
+
+    @hybrid_property
+    def n_collections(self):
+        return len(self.collections)
 
     def to_dict(self):
         return {

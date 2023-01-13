@@ -2,7 +2,7 @@ from flask import flash
 from flask_wtf import FlaskForm, Form
 from wtforms import (
     StringField, BooleanField, EmailField, PasswordField,
-    SelectField, FormField, FieldList, IntegerField
+    SelectField, FormField, FieldList, IntegerField, DateTimeField
 )
 from wtforms.validators import (
     InputRequired, Length, Email, ValidationError
@@ -83,12 +83,12 @@ class DiscForm(Form):
     
 class ScrobbylReleaseForm(FlaskForm):
     __M = [5, 10, 15, 30, 45, 60, 90, 120]
-    __offset_vals = [-x for x in __M[::-1]] + [0] +  __M
+    __offset_secs = [y*60 for y in [-x for x in __M[::-1]] + [0] +  __M]
     __offset_labs = [f"{o} mins ago" for o in __M[::-1]] + ['now'] + [f"in {o} mins" for o in __M]
 
+    timestamp = DateTimeField()
     t0 = SelectField(u'', choices=['started', 'ended'])
-    offset = SelectField(u'', choices=list(zip(__offset_vals, __offset_labs)), coerce=int)
-
+    offset = SelectField(u'', choices=list(zip(__offset_secs, __offset_labs)), coerce=int)
     id = IntegerField('releases.id')
     title = StringField()
     year = StringField()

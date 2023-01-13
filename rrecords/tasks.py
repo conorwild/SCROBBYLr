@@ -1,20 +1,10 @@
 from .models.base import User, Release
-from .musicbrainz import MusicbrainzMatcher
 from flask import Blueprint
 import click
 
 from . import celery, db
 
 tasks_bp = Blueprint('tasks', __name__)
-
-@tasks_bp.cli.command('match_all_releases')
-@celery.task(name='app.tasks.match_all_releases')
-def match_releases_to_mb():
-    mb = MusicbrainzMatcher()
-    for release in Release.query.all():
-        print("\n")
-        print(release)
-        mb.match_release(release)
 
 @tasks_bp.cli.command('fix_releases')
 def fix_releases():
@@ -37,12 +27,5 @@ def fix_releases():
                     print("WARNING: SOMETHING")
 
         db.session.commit()
-
-
-@tasks_bp.cli.command('match_release')
-@click.argument("release_id")
-def match_release(release_id):
-    m = MusicbrainzMatcher()
-    m.match_release(Release.query.get(release_id))
 
     

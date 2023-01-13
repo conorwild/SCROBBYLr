@@ -77,7 +77,9 @@ class CollectionSchema(DiscogsSchema):
     name = auto_field()
     discogs_id = auto_field()
     resource_url = auto_field()
-    size = fields.Integer()
+    count = auto_field()
+    n_synced = fields.Integer()
+    n_matched = fields.Integer()
 
 collection_schema = CollectionSchema(many=True)
 

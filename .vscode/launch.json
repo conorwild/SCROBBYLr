@@ -65,7 +65,7 @@
             "args": [
                 "tasks",
                 "match_release",
-                "12"
+                "2"
             ],
             "jinja": true,
             "justMyCode": true

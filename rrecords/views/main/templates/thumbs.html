@@ -2,10 +2,72 @@
 {% block content %}
 <section class="section">
     <div class="container">
+        <div class="columns is-centered">
+            <div class="column is-8">
+                {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    <div class="notification is-danger">
+                        {{ messages[0] }}
+                    </div>
+                {% endif %}
+                {% endwith %}
+            </div>
+        </div>
+
+        <nav class="level">
+            <div class="level-left">
+                <div class="level-item">
+                    <span class="subtitle is-3">
+                        <strong>{{ collection.name.upper() }}</strong>
+                    </span>
+                </div>
+            </div>
+            <div class="level-right">
+                <div class="level-item has-text-centered ">
+                    <span class="icon-text">
+                        <span >
+                            SYNCED {{ collection.n_synced }}/{{ collection.count }}
+                        </span>
+                        {% if syncing %}
+                            <span class="icon">
+                                <i class="fa-solid fa-pulse fa-rotate"></i>
+                            </span>
+                        {% else %}
+                            <a href="{{ url_for('main_bp.update_collection', id=collection.id) }}">
+                                <span class="icon">
+                                    <i class="fa-solid fa-rotate"></i>
+                                </span>
+                            </a>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="level-item"></div>
+                <div class="level-item"></div>
+                <div class="level-item">
+                    <span class="icon-text">
+                        <span >
+                            MATCHED {{ collection.n_matched }}/{{ collection.n_synced }}
+                        </span>
+                        {% if matching %}
+                            <span class="icon">
+                                <i class="fa-solid fa-pulse fa-rotate"></i>
+                            </span>
+                        {% else %}
+                            <a href="{{ url_for('main_bp.match_collection', id=collection.id) }}">
+                                <span class="icon">
+                                    <i class="fa-solid fa-rotate"></i>
+                                </span>
+                            </a>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </nav>
+
         {% for row in items|batch(6) %}
         <div class="columns">
             {% for item in row %}
-            <div class="column">
+            <div class="column is-2">
                 <a href="{{ url_for('main_bp.release', id=item['id']) }}"><img src="{{ item['cover'] }}" /></a>
             </div>
             {% endfor %}

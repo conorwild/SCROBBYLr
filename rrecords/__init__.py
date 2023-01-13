@@ -17,7 +17,8 @@ migrate = Migrate()
 moment = Moment()
 celery = Celery(__name__,
     broker=Config.CELERY_BROKER_URL,
-    result_backend=Config.CELERY_RESULT_BACKEND
+    result_backend=Config.CELERY_RESULT_BACKEND,
+    result_extended=True
 )
 
 def _fk_pragma_on_connect(dbapi_con, con_record):

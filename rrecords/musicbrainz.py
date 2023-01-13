@@ -1,3 +1,4 @@
+from .models.base import Release, Collection
 from .models.musicbrainz import MusicbrainzRelease
 from .schemas.musicbrainz import mb_release_schema
 from flask import current_app as app
@@ -11,7 +12,7 @@ from scipy.optimize import linear_sum_assignment
 from thefuzz.process import extractWithoutOrder
 from thefuzz.fuzz import ratio
 
-from . import db
+from . import db, celery
 
 _SCALE = 100
 
@@ -176,3 +177,24 @@ class MusicbrainzMatcher():
             idc, imb = dc_idx[i], mb_idx[i]
             release.tracks[idc].mb_match = release.mb_match.tracks[imb]
             release.tracks[idc].mb_match_code = distances[idc, imb]
+
+            
+# @tasks_bp.cli.command('match_release')
+# @click.argument("release_id")
+# def match_release(release_id):
+#     m = MusicbrainzMatcher()
+#     m.match_release(Release.query.get(release_id))
+
+@celery.task(name='scrobbylr.musicbrainz.match_releases', bind=True)
+def musicbrainz_match_releases_task(self, collection_id):
+    mb = MusicbrainzMatcher()
+    collection = Collection.query.get(collection_id)
+    n_releases = collection.n_synced
+    for i, release in enumerate(collection.releases):
+        if not release.is_matched:
+            mb.match_release(release)
+        self.update_state(
+            state='PROGRESS', 
+            meta={'progress': (i+1)*100.0/n_releases, 'matched': i}
+        )
+    return True

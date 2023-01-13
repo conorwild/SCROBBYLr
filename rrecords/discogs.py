@@ -6,7 +6,7 @@ from .models.base import (
 )
 
 from .schemas.base import (
-    release_w_track_schema, track_schema, collection_schema
+    release_w_track_schema, track_schema, CollectionSchema
 )
 import click
 from .tasks import tasks_bp
@@ -15,8 +15,8 @@ from . import db, celery
 # @tasks_bp.cli.command('sync_collection')
 # @click.argument("user_id")
 # @click.argument("collection_id")
-@celery.task(name='app.discogs.sync_collection')
-def sync_collection(user_id, collection_id):
+@celery.task(name='scrobblyr.discogs.sync_collection', bind=True)
+def sync_discogs_collection_task(self, user_id, collection_id):
     local = Collection.query.get(collection_id)
     if not local:
         raise ValueError(f"Collection ID {collection_id} not found.")
@@ -27,22 +27,42 @@ def sync_collection(user_id, collection_id):
     remote = [c for c in remote_collections if c.id == local.discogs_id]
     if not remote:
         raise ValueError(f"No matching remote collection found.")
-
-    for instance in remote[0].releases:
-        discogs_release = instance.release
-        print(discogs_release.title)
-        release = Release.query.filter(Release.discogs_id==discogs_release.id).first()
-        if release is None:
-            release = add_from_discogs(discogs_release, commit=False)
-        if release not in local.releases:
-            local.releases.append(release)
-
+    
+    n_releases = remote[0].count
+    if n_releases != local.count:
+        local.count = n_releases
         db.session.commit()
 
-    return True
+    discogs_ids = []
+    for i, instance in enumerate(remote[0].releases):
+        do_commit = False
+        discogs_release = instance.release
+        release = Release.query.filter(Release.discogs_id==discogs_release.id).first()
+        discogs_ids.append(discogs_release.id)
 
-@celery.task(name='app.discogs.sync_folders')
-def sync_folders(user_id):
+        if release is None:
+            release = add_from_discogs(discogs_release, commit=False)
+            do_commit = True
+
+        if release not in local.releases:
+            local.releases.append(release)
+            do_commit = True
+
+        if do_commit:
+            db.session.commit()
+
+        self.update_state(
+            state='PROGRESS', 
+            meta={'progress': i*100.0/n_releases, 'synced': i-1}
+        )
+
+    keep_releases = [r for r in local.releases if r.discogs_id in discogs_ids]
+    local.releases = keep_releases
+    db.session.commit()
+
+@celery.task(name='scrobbylr.discogs.sync_folders')
+def sync_folders_task(user_id):
+    collection_schema = CollectionSchema()
     client = User.query.get(user_id).open_discogs()
     folders = client.identity().collection_folders
     for folder in folders:

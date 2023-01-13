@@ -8,7 +8,7 @@ from discogs_client.exceptions import HTTPError
 
 from . import discogs_bp
 from ... import db
-from ...discogs import sync_folders
+from ...discogs import sync_folders_task
 
 @app.errorhandler(HTTPError)
 def handle_bad_request(e):
@@ -39,9 +39,13 @@ def auth():
     current_user.discogs_account = client.identity().username
     db.session.commit()
 
-    sync_folders.apply_async(args=[current_user.id])
+    return redirect(url_for('discogs_bp.sync_folders'))
 
-    return redirect(url_for('main_bp.profile'))
+@discogs_bp.route('sync_folders', methods=['GET'])
+@login_required
+def sync_folders():
+    sync_folders_task(current_user.id)
+    return redirect(url_for('main_bp.collections'))
 
 @discogs_bp.route('logout', methods=["GET"])
 @login_required

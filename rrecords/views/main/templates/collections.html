@@ -1,29 +1,59 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="columns is-centered">
-    <div class="column is-half">
-        <section class="section">
-            <h1 class="title has-text-left" >COLLECTIONS</h1>
-        </section>
+    <div class="column is-6">
+        <nav class="level">
+            <div class="level-left">
+                <div class="level-item">
+                    <span class="subtitle is-3">
+                        <strong>COLLECTIONS</strong>
+                    </span>
+                </div>
+            </div>
+            <div class="level-right">
+                <div class="level-item">
+                    <span class="icon-text">
+                        <span >
+                            SYNCED {{ current_user.n_collections }}
+                        </span>
+                        {% if syncing %}
+                            <span class="icon">
+                                <i class="fa-solid fa-pulse fa-rotate"></i>
+                            </span>
+                        {% else %}
+                            <a href="{{ url_for('discogs_bp.sync_folders') }}">
+                                <span class="icon">
+                                    <i class="fa-solid fa-rotate"></i>
+                                </span>
+                            </a>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </nav>
         <div class="box">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>NAME</th>
-                        <th>SIZE</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for c in collections %}
-                    <tr>
-                        <td>{{ c.discogs_id }}</td>
-                        <td>{{c.name}}</td>
-                        <td>{{c.size}}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <div class="content is-small">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>NAME</th>
+                            <th>SYNCED</th>
+                            <th>MATCHED</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in collections %}
+                        <tr>
+                            <td><a href="{{ url_for('main_bp.collection', id=c.id) }}">
+                                {{ c.name.upper() }}
+                            </a></td>
+                            <td>{{ c.n_synced }} / {{ c.count }}</td>
+                            <td>{{ c.n_matched }} / {{ c.n_synced }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>

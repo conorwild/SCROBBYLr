@@ -57,7 +57,11 @@
                     </div>
                     <div class="field">
                         <p class="control is-expanded">
+                            {% if form.musicbrainz_url.data %}
                             <button class="button is-link is-fullwidth" type="submit">SCROBBYL</button>
+                            {% else %}
+                            <button class="button is-link is-fullwidth" type="submit" disabled>SCROBBYL</button>
+                            {% endif %}
                         </p>
                     </div>
 
