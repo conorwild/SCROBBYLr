@@ -33,10 +33,12 @@ Flask-Session==0.4.0
 Flask-SQLAlchemy==3.0.2
 Flask-WTF==1.0.1
 flatdict==4.0.1
+flower==1.2.0
 greenlet==2.0.1
 h11==0.14.0
 httpcore==0.16.2
 httpx==0.23.1
+humanize==4.4.0
 idna==3.4
 importlib-metadata==5.1.0
 iniconfig==1.1.1
@@ -69,6 +71,7 @@ Pillow==9.3.0
 pillowcase==2.0.0
 platformdirs==2.6.0
 pluggy==1.0.0
+prometheus-client==0.15.0
 prompt-toolkit==3.0.36
 psutil==5.9.4
 ptyprocess==0.7.0
