@@ -30,10 +30,9 @@ def login():
 @login_required
 def auth():
     verifier = request.args.get('oauth_verifier')
-    client = session['discogs']
+    client = session.pop('discogs')
 
     token, secret = client.get_access_token(verifier)
-    session['discogs'] = client
     current_user.discogs_token = token
     current_user.discogs_secret = secret
     current_user.discogs_account = client.identity().username
@@ -50,7 +49,6 @@ def sync_folders():
 @discogs_bp.route('logout', methods=["GET"])
 @login_required
 def logout():
-    del(session['discogs'])
     current_user.discogs_token = None
     current_user.discogs_secret = None
     current_user.discogs_account = None

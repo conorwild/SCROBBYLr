@@ -27,5 +27,3 @@ def fix_releases():
                     print("WARNING: SOMETHING")
 
         db.session.commit()
-
-    

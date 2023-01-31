@@ -343,6 +343,7 @@ class User(UserMixin, db.Model):
     name = Column(String(20), nullable=False)
     email = Column(String(50), unique=True, nullable=False)
     password = Column(String(100), nullable=False)
+    lastfm_key = Column(String(32))
     discogs_token = Column(String(32))
     discogs_secret = Column(String(32))
     discogs_account = Column(String(20))

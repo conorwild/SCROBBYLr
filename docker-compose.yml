@@ -57,25 +57,42 @@ services:
       - redis
       # - db
 
-  flower:
-    build:
-      context: .
-      dockerfile: ./compose/local/flask/Dockerfile
-    image: flask_celery_flower
-    command: /start-flower
-    volumes:
-      - .:/app
-    env_file:
-      - .env/.dev
-    environment:
-      - FLASK_APP=rrecords
-    networks:
-      - live
-    ports:
-      - 5557:5555
-    depends_on:
-      - redis
-      # - db
+  # flower:
+  #   build:
+  #     context: .
+  #     dockerfile: ./compose/local/flask/Dockerfile
+  #   image: flask_celery_flower
+  #   command: /start-flower
+  #   volumes:
+  #     - .:/app
+  #   env_file:
+  #     - .env/.dev
+  #   environment:
+  #     - FLASK_APP=rrecords
+  #   networks:
+  #     - live
+  #   ports:
+  #     - 5557:5555
+  #   depends_on:
+  #     - redis
+  #     # - db
+
+  # celery_beat:
+  #   build:
+  #     context: .
+  #     dockerfile: ./compose/local/flask/Dockerfile
+  #   image: flask_celery_beat
+  #   command: /start-celerybeat
+  #   volumes:
+  #     - .:/app
+  #   networks:
+  #     - live
+  #   env_file:
+  #     - .env/.dev
+  #   environment:
+  #     - FLASK_APP=rrecords
+  #   depends_on:
+  #     - redis
 
 # volumes:
 #   postgres_data:

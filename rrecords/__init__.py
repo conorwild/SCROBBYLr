@@ -17,8 +17,7 @@ migrate = Migrate()
 moment = Moment()
 celery = Celery(__name__,
     broker=Config.CELERY_BROKER_URL,
-    result_backend=Config.CELERY_RESULT_BACKEND,
-    result_extended=True
+    result_backend=Config.CELERY_RESULT_BACKEND
 )
 
 def _fk_pragma_on_connect(dbapi_con, con_record):
@@ -61,8 +60,11 @@ def create_app():
         from .views.main import main_bp
         app.register_blueprint(main_bp)
 
-        from .views.discogs.routes import discogs_bp
+        from .views.discogs import discogs_bp
         app.register_blueprint(discogs_bp)
+
+        from .views.lastfm import lastfm_bp
+        app.register_blueprint(lastfm_bp)
 
         from .tasks import tasks_bp
         app.register_blueprint(tasks_bp)
